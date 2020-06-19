@@ -1,5 +1,5 @@
 Dependencies for Project 'STM32F072Demo', Target 'Stm32f072_bootloader': (DO NOT MODIFY !)
-F (.\main.c)(0x5EEB2EC5)(-c --cpu Cortex-M0 -g -O0 --apcs=interwork --split_sections -I ..\CORE -I ..\HARDWARE -I ..\User -I ..\SYSTEM -I ..\STM32F0xx_FWLib\inc -I ..\STM32F0xx_FWLib\src --c99-I.\RTE\_Stm32f072_bootloader-ID:\mdk5\ARM\PACK\Keil\STM32F0xx_DFP\2.0.0\Drivers\CMSIS\Device\ST\STM32F0xx\Include-ID:\mdk5\ARM\CMSIS\Include-D__UVISION_VERSION="525" -DSTM32F072xB -DUSE_STDPERIPH_DRIVER -DSTM32F0XX-o ..\obj\main.o --omf_browse ..\obj\main.crf --depend ..\obj\main.d)
+F (.\main.c)(0x5EEC535B)(-c --cpu Cortex-M0 -g -O0 --apcs=interwork --split_sections -I ..\CORE -I ..\HARDWARE -I ..\User -I ..\SYSTEM -I ..\STM32F0xx_FWLib\inc -I ..\STM32F0xx_FWLib\src --c99-I.\RTE\_Stm32f072_bootloader-ID:\mdk5\ARM\PACK\Keil\STM32F0xx_DFP\2.0.0\Drivers\CMSIS\Device\ST\STM32F0xx\Include-ID:\mdk5\ARM\CMSIS\Include-D__UVISION_VERSION="525" -DSTM32F072xB -DUSE_STDPERIPH_DRIVER -DSTM32F0XX-o ..\obj\main.o --omf_browse ..\obj\main.crf --depend ..\obj\main.d)
 I (main.h)(0x5EEAD40D)
 I (stm32f0xx.h)(0x54808D0E)
 I (..\CORE\core_cm0.h)(0x4F6BFDB8)
