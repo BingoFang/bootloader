@@ -60,11 +60,17 @@ int main(void)
 	uart_init(256000);	 //串口初始化为256000
 	LED_Init();		  		 //初始化与LED连接的硬件接口
 	
+		if(*((uint32_t *)APP_EXE_FLAG_START_ADDR)==0x78563412){
+		LED4 = 1;
+		delay_ms(1000);
+    USART_BOOT_JumpToApplication(APP_START_ADDR);
+  }
+	__set_PRIMASK(0);//开启总中断
+	
 	LED3 = 1;
 	delay_ms(1000);
 
 	LocalJumpApp();
-	
 	
 	while(1)
 	{

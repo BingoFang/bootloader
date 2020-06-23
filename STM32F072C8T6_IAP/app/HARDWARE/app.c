@@ -128,7 +128,7 @@ void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage)
     if(can_addr != 0x00){
       TxMessage.ExtId = (CAN_BOOT_GetAddrData()<<CMD_WIDTH)|CMD_List.CmdSuccess;
       TxMessage.DLC = 0;
-      BOOT_DelayMs(20);
+      delay_ms(20);
       CAN_WriteData(&TxMessage);
     }
     return;

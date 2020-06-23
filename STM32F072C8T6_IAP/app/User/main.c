@@ -7,6 +7,7 @@
 //******************************************************************************/
 
 #include "main.h"
+#include <string.h>
 
 /*
 IAP升级区域划分,flash:64kb,sram:16kb,page size 2kb
@@ -45,6 +46,7 @@ CBL_CMD_LIST CMD_List =
 
 extern CanRxMsg CAN_RxMessage;
 extern volatile uint8_t CAN_RxMsgFlag;//接收到CAN数据后的标志
+uint8_t CAN_TxMsgBuf[8] = {0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08};
 
 __IO uint32_t VectorTable[48] __attribute__((at(0x20000000)));
 
@@ -66,9 +68,10 @@ void VectorTableOffset(void)
 	SYSCFG->CFGR1 |= 0x03;
 }
 
+uint8_t i;
 int main(void)
 {
-//	VectorTableOffset();  //软件搬运中断向量表
+	VectorTableOffset();  //软件搬运中断向量表
 	
 	if(*((uint32_t *)APP_EXE_FLAG_START_ADDR) == 0xFFFFFFFF){
 		__align(4) static unsigned char data[4] = {0x12, 0x34, 0x56, 0x78};
@@ -81,21 +84,45 @@ int main(void)
 	
 	LED_Init();
 	delay_init();
-	CAN_Configuration(1000000);
-
-	LED3_ON(); 
-	delay_ms(5000);
-	LED4_ON();
+	CAN_Configuration(125000);
 	
-	delay_ms(5000);
-	LED3_OFF();
-	LED4_OFF();
+	for (i = 0; i < 3; i++)
+	{
+		if (0 == CAN_SendMsg(CAN_TxMsgBuf,8))
+		{
+			LED3_ON();	LED4_ON();
+			delay_ms(2000);
+			LED3_OFF(); LED4_OFF();
+		}
+		else
+		{
+				LED3_ON();	LED4_ON();
+		}
+		delay_ms(1500);
+	}
 	
   while (1)
   {	
-		if(CAN_RxMsgFlag){
+//		if(CAN_RxMsgFlag){
 //     CAN_BOOT_ExecutiveCommand(&CAN_RxMessage);
-     CAN_RxMsgFlag = 0;
+//     CAN_RxMsgFlag = 0;
+//		}
+		if (CAN_RxMsgFlag)
+		{
+			CAN_RxMsgFlag = 0;
+			if(0 == strncmp((char *)CAN_TxMsgBuf, (char *)CAN_RxMessage.Data, sizeof(CAN_TxMsgBuf)))
+			{
+				LED3_ON();
+				delay_ms(2000);
+				LED3_OFF();
+				
+			}
+			else
+			{
+				LED4_ON();
+				delay_ms(2000);
+				LED4_OFF();				
+			}
 		}
   } 
 }

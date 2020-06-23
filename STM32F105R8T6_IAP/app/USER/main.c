@@ -1,4 +1,5 @@
 #include "main.h"
+#include <string.h>
 
 /*
 IAP升级区域划分,flash:64kb,sram:64kb,page size 2kb
@@ -23,28 +24,12 @@ IAP升级区域划分,flash:64kb,sram:64kb,page size 2kb
 ==========================================
 */
 
-//粗延时函数，微秒
-void soft_delay_us(u16 time)
-{
-	u16 i=0;
-	while(time--)
-	{
-		i=10;//自己定义
-		while(i--);
-	}
-}
-	
-//毫秒级的延时
-void soft_delay_ms(u16 time)
-{
-	u16 i=0;
-	while(time--)
-	{
-		i=12000;//自己定义
-		while(i--);
-	}
-}
 
+TestStatus status;
+extern CanRxMsg CAN_RxMessage;
+extern volatile uint8_t CAN_RxMsgFlag;
+uint8_t CAN_TxMsgBuf[8] = {0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08};
+uint8_t i;
 
 int main(void)
 { 
@@ -62,13 +47,41 @@ int main(void)
 	delay_init();	    	 //延时函数初始化	  
 	uart_init(256000);	 //串口初始化为256000
 	LED_Init();		  		 //初始化与LED连接的硬件接口
+	CAN_Configuration(125000);  
 	
-	LED4 = 1;
-	delay_ms(1000);
-
-
+	for (i = 0; i < 3; i++)
+	{
+		if (0 == CAN_SendMsg(CAN_TxMsgBuf,8))
+		{
+			LED3 = 1; LED4 = 1;
+			delay_ms(1000);
+			LED3 = 0; LED4 = 0;
+		}
+		else
+		{
+			LED3 = 1; LED4 = 1;
+		}
+		delay_ms(1500);
+	}
+	
 	while(1)
 	{
+		if (CAN_RxMsgFlag)
+		{
+			CAN_RxMsgFlag = 0;
+			if(0 == strncmp((char *)CAN_TxMsgBuf,(char *)CAN_RxMessage.Data, sizeof(CAN_TxMsgBuf)))
+			{
+				LED3 = 1;
+				delay_ms(1000);  
+				LED3 = 0;
+			}
+			else
+			{
+				LED4 = 1;
+				delay_ms(1000);
+				LED4 = 0;				
+			}
+		}
 	}   	   
 }
 

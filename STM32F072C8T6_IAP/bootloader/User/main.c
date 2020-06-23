@@ -7,6 +7,7 @@
 //******************************************************************************/
 
 #include "main.h"
+#include <string.h>
 
 /*
 IAP升级区域划分,flash:64kb,sram:16kb,page size 2kb
@@ -45,6 +46,7 @@ CBL_CMD_LIST CMD_List =
 
 extern CanRxMsg CAN_RxMessage;
 extern volatile uint8_t CAN_RxMsgFlag;//接收到CAN数据后的标志
+uint8_t CAN_TxMsgBuf[8] = {0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08};
 
 //本地直接跳转app
 void LocalJumpApp(void)
@@ -62,21 +64,38 @@ int main(void)
 	
 	if(*((uint32_t *)APP_EXE_FLAG_START_ADDR)==0x78563412){
 		LED2_ON();
-		delay_ms(5000);
+		delay_ms(2000);
     CAN_BOOT_JumpToApplication(APP_START_ADDR);
   }
   __set_PRIMASK(0);//开启总中断
-//  CAN_Configuration(1000000);	//can通信配置
+  CAN_Configuration(125000);	//can通信配置
 	LED1_ON();
-	delay_ms(5000);
+	delay_ms(2000);
 	
 	LocalJumpApp();
+	
   while (1)
   {	
-//		if(CAN_RxMsgFlag){
+//		if(CAN_RxMsgFlag){ 
 //    CAN_BOOT_ExecutiveCommand(&CAN_RxMessage);
 //    CAN_RxMsgFlag = 0;
 //		}
+		if (CAN_RxMsgFlag)
+		{
+			CAN_RxMsgFlag = 0;
+			if(0 == strncmp((char *)CAN_TxMsgBuf, (char *)CAN_RxMessage.Data, sizeof(CAN_TxMsgBuf)))
+			{
+				LED3_ON();
+				delay_ms(2000);
+				LED3_OFF();
+			}
+			else
+			{
+				LED4_ON();
+				delay_ms(2000);
+				LED4_OFF();				
+			} 
+		}
   } 
 }
 

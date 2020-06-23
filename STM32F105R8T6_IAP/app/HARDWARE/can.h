@@ -1,7 +1,7 @@
 #ifndef __CAN_H__
 #define __CAN_H__
 
-#include "stm32f0xx.h"
+#include "sys.h"
 
 typedef enum {FAILED = 0, PASSED = !FAILED} TestStatus;
 
@@ -12,5 +12,7 @@ uint16_t Read_CAN_Address(void);
 TestStatus CAN_Interrupt(void);
 uint8_t CAN_SendMsg(uint8_t *msg, uint8_t len);
 
+
 #endif
+
 

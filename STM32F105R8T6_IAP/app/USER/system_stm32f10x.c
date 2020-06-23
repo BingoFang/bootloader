@@ -1029,13 +1029,13 @@ static void SetSysClockTo72(void)
 
 #ifdef STM32F10X_CL
     /* Configure PLLs ------------------------------------------------------*/
-    /* PLL2 configuration: PLL2CLK = (HSE / 5) * 8 = 40 MHz */
-    /* PREDIV1 configuration: PREDIV1CLK = PLL2 / 5 = 8 MHz */
+    /* PLL2 configuration: PLL2CLK = (HSE / 8) * 8 = 8 MHz */
+    /* PREDIV1 configuration: PREDIV1CLK = PLL2 / 1 = 8 MHz */
         
     RCC->CFGR2 &= (uint32_t)~(RCC_CFGR2_PREDIV2 | RCC_CFGR2_PLL2MUL |
                               RCC_CFGR2_PREDIV1 | RCC_CFGR2_PREDIV1SRC);
-    RCC->CFGR2 |= (uint32_t)(RCC_CFGR2_PREDIV2_DIV5 | RCC_CFGR2_PLL2MUL8 |
-                             RCC_CFGR2_PREDIV1SRC_PLL2 | RCC_CFGR2_PREDIV1_DIV5);
+    RCC->CFGR2 |= (uint32_t)(RCC_CFGR2_PREDIV2_DIV8 | RCC_CFGR2_PLL2MUL8 |
+                             RCC_CFGR2_PREDIV1SRC_PLL2 | RCC_CFGR2_PREDIV1_DIV1);
   
     /* Enable PLL2 */
     RCC->CR |= RCC_CR_PLL2ON;

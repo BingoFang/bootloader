@@ -5,6 +5,7 @@
 #include "delay.h"
 #include "sys.h"
 #include "usart.h"  
+#include "can.h"
 #include "app.h"
  
 
