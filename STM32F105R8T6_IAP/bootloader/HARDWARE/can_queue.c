@@ -84,7 +84,7 @@ static void can_frame_clear(can_frame_t *frame)
 }
 
  
-void can_frame_copy(can_frame_t *dst, can_frame_t *src)
+static void can_frame_copy(can_frame_t *dst, can_frame_t *src)
 {
   can_frame_t *dst_tmp = dst, *src_tmp = src;
   dst_tmp->ExtId = src_tmp->ExtId;

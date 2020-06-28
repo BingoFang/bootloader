@@ -38,7 +38,6 @@ extern can_queue_t can_queue_send;
 
  
 void CanQueueInit(void);
-void can_frame_copy(can_frame_t *dst, can_frame_t *src);
 uint8_t CanQueueRead(can_queue_t *q, can_frame_t *frame);
 uint8_t CanQueueWrite(can_queue_t *q, can_frame_t *frame);
 

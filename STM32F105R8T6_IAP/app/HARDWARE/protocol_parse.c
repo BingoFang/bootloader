@@ -7,7 +7,7 @@
 
 #define UART_BL_BOOT     0x55555555
 #define UART_BL_APP      0xAAAAAAAA
-#define FW_TYPE          UART_BL_BOOT
+#define FW_TYPE          UART_BL_APP
 
 cmd_list_t cmd_list = 
 {
@@ -170,13 +170,14 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 	{
 		exe_type = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16)
 							|(data_info_p->data[2] << 8) | (data_info_p->data[3] << 0);
-    if(exe_type == UART_BL_APP)
+    if(exe_type == UART_BL_BOOT)
 		{
-      if((*((uint32_t *)APP_START_ADDR) != 0xFFFFFFFF))
-			{
-        USART_BOOT_JumpToApplication(APP_START_ADDR);
-      }
-    }
+			FLASH_Unlock();
+      USART_BOOT_ErasePage(APP_EXE_FLAG_START_ADDR,APP_EXE_FLAG_START_ADDR);//擦除写入到Flash中的APP执行标志，复位运行后，即可执行Bootloader程序
+			FLASH_Lock();
+			__set_PRIMASK(1);  //关闭所有中断
+			NVIC_SystemReset();
+		}
 	}
 }
 	
@@ -257,6 +258,7 @@ void prepare_protocol(uint8_t rx_data)
 	{
 		state = 3;
 		rx_buf[2] = rx_data;
+		data_len--;
 	}
 	else if (state == 3 && data_len > 0) //protocol data
 	{
@@ -291,9 +293,7 @@ void handle_usart_queue(void)
 {
 	uint8_t cpu_send_mcu_uart_data;
 	if (USART_QUEUE_OK == UsartQueuePop(&usart1_send, &cpu_send_mcu_uart_data))
-	{
-		prepare_protocol(cpu_send_mcu_uart_data);
-	}
+	prepare_protocol(cpu_send_mcu_uart_data);
 }
 
 /* 处理072回复的can队列数据，通过uart发回cpu */

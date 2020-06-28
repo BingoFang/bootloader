@@ -23,12 +23,13 @@ typedef struct
 } usart_queue_t;
 
  
-extern usart_queue_t usart1_send, usart3_send;
 
+extern usart_queue_t usart1_send;
+
+ 
 void UsartQueueInit(usart_queue_t *q);
 uint8_t UsartQueuePush(usart_queue_t *q, uint8_t data);
 uint8_t UsartQueuePop(usart_queue_t *q, uint8_t *data);
-
 
 #endif
 

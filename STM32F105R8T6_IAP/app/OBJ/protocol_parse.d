@@ -38,6 +38,6 @@
 ..\obj\protocol_parse.o: ..\HARDWARE\usart_queue.h
 ..\obj\protocol_parse.o: ..\HARDWARE\can.h
 ..\obj\protocol_parse.o: ..\HARDWARE\can_queue.h
-..\obj\protocol_parse.o: ..\HARDWARE\bootloader.h
+..\obj\protocol_parse.o: ..\HARDWARE\app.h
 ..\obj\protocol_parse.o: ..\HARDWARE\protocol_parse.h
 ..\obj\protocol_parse.o: D:\mdk5\ARM\ARMCC\Bin\..\include\string.h

@@ -4,7 +4,7 @@
 ..\obj\usart.o: ..\SYSTEM\sys\sys.h
 ..\obj\usart.o: ..\USER\stm32f10x.h
 ..\obj\usart.o: ..\CORE\core_cm3.h
-..\obj\usart.o: F:\mdk\ARM\ARMCC\Bin\..\include\stdint.h
+..\obj\usart.o: D:\mdk5\ARM\ARMCC\Bin\..\include\stdint.h
 ..\obj\usart.o: ..\USER\system_stm32f10x.h
 ..\obj\usart.o: ..\USER\stm32f10x_conf.h
 ..\obj\usart.o: ..\STM32F10x_FWLib\inc\stm32f10x_adc.h
@@ -34,7 +34,7 @@
 ..\obj\usart.o: ..\SYSTEM\delay\delay.h
 ..\obj\usart.o: ..\HARDWARE\crc16.h
 ..\obj\usart.o: ..\SYSTEM\usart\usart.h
-..\obj\usart.o: F:\mdk\ARM\ARMCC\Bin\..\include\stdio.h
+..\obj\usart.o: D:\mdk5\ARM\ARMCC\Bin\..\include\stdio.h
 ..\obj\usart.o: ..\HARDWARE\usart_queue.h
 ..\obj\usart.o: ..\HARDWARE\can.h
 ..\obj\usart.o: ..\HARDWARE\can_queue.h

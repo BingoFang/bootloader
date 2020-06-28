@@ -42,17 +42,19 @@ int main(void)
   NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);//设置中断优先级分组2
 	delay_init();	    			 											 //延时函数初始化	  
 	LED_Init();		  		 													 //初始化与LED连接的硬件接口
-	CAN_Configuration(125000);										 //CAN波特率125000
-	CanQueueInit();																 //CAN队列初始化
-	USART1_Init(256000); 													 //串口初始化为256000
+//	CAN_Configuration(125000);										 //CAN波特率125000
+//	CanQueueInit();																 //CAN队列初始化
+	USART1_Init(115200); 													 //串口初始化为256000
 	UsartQueueInit(&usart1_send);									 //串口队列初始化
 
 	LED3 = 1;
-	delay_ms(1000);
+	
+	USART1_Send_Data("stm32105-bootloader",strlen("stm32105-bootloader"));
 	
 	while(1)
 	{
-	
+		handle_usart_queue();
+//		handle_can_queue();
 	}   	   
 }
 

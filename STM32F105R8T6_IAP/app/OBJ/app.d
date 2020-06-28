@@ -4,7 +4,7 @@
 ..\obj\app.o: ..\SYSTEM\sys\sys.h
 ..\obj\app.o: ..\USER\stm32f10x.h
 ..\obj\app.o: ..\CORE\core_cm3.h
-..\obj\app.o: F:\mdk\ARM\ARMCC\Bin\..\include\stdint.h
+..\obj\app.o: D:\mdk5\ARM\ARMCC\Bin\..\include\stdint.h
 ..\obj\app.o: ..\USER\system_stm32f10x.h
 ..\obj\app.o: ..\USER\stm32f10x_conf.h
 ..\obj\app.o: ..\STM32F10x_FWLib\inc\stm32f10x_adc.h
@@ -32,9 +32,11 @@
 ..\obj\app.o: ..\STM32F10x_FWLib\inc\stm32f10x_wwdg.h
 ..\obj\app.o: ..\STM32F10x_FWLib\inc\misc.h
 ..\obj\app.o: ..\SYSTEM\delay\delay.h
+..\obj\app.o: ..\HARDWARE\crc16.h
 ..\obj\app.o: ..\SYSTEM\usart\usart.h
-..\obj\app.o: F:\mdk\ARM\ARMCC\Bin\..\include\stdio.h
+..\obj\app.o: D:\mdk5\ARM\ARMCC\Bin\..\include\stdio.h
 ..\obj\app.o: ..\HARDWARE\usart_queue.h
 ..\obj\app.o: ..\HARDWARE\can.h
 ..\obj\app.o: ..\HARDWARE\can_queue.h
 ..\obj\app.o: ..\HARDWARE\app.h
+..\obj\app.o: ..\HARDWARE\protocol_parse.h

@@ -11,7 +11,7 @@ typedef  struct {
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 CanRxMsg CAN_RxMessage;
-volatile uint8_t CAN_RxMsgFlag = 0;//接收到CAN数据后的标志
+volatile uint8_t CAN_RxMsgFlag=0;//接收到CAN数据后的标志
 volatile uint8_t TimeOutFlag;				///<定时器超时标志
 tCAN_BaudRate  CAN_BaudRateInitTab[]= {      // CLK=36MHz
    {CAN_SJW_1tq,CAN_BS1_10tq,CAN_BS2_1tq,3},     // 1M
@@ -283,7 +283,6 @@ void CAN1_RX0_IRQHandler(void)
   {
     CanRxMsg RxMessage;
     
-    RxMessage.StdId = 0x00;
     RxMessage.ExtId = 0x00;
     RxMessage.IDE = 0;
     RxMessage.DLC = 0;

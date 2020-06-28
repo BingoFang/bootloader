@@ -4,7 +4,7 @@
 ..\obj\led.o: ..\SYSTEM\sys\sys.h
 ..\obj\led.o: ..\USER\stm32f10x.h
 ..\obj\led.o: ..\CORE\core_cm3.h
-..\obj\led.o: F:\mdk\ARM\ARMCC\Bin\..\include\stdint.h
+..\obj\led.o: D:\mdk5\ARM\ARMCC\Bin\..\include\stdint.h
 ..\obj\led.o: ..\USER\system_stm32f10x.h
 ..\obj\led.o: ..\USER\stm32f10x_conf.h
 ..\obj\led.o: ..\STM32F10x_FWLib\inc\stm32f10x_adc.h
@@ -32,9 +32,11 @@
 ..\obj\led.o: ..\STM32F10x_FWLib\inc\stm32f10x_wwdg.h
 ..\obj\led.o: ..\STM32F10x_FWLib\inc\misc.h
 ..\obj\led.o: ..\SYSTEM\delay\delay.h
+..\obj\led.o: ..\HARDWARE\crc16.h
 ..\obj\led.o: ..\SYSTEM\usart\usart.h
-..\obj\led.o: F:\mdk\ARM\ARMCC\Bin\..\include\stdio.h
+..\obj\led.o: D:\mdk5\ARM\ARMCC\Bin\..\include\stdio.h
 ..\obj\led.o: ..\HARDWARE\usart_queue.h
 ..\obj\led.o: ..\HARDWARE\can.h
 ..\obj\led.o: ..\HARDWARE\can_queue.h
 ..\obj\led.o: ..\HARDWARE\app.h
+..\obj\led.o: ..\HARDWARE\protocol_parse.h

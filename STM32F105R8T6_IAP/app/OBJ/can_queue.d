@@ -4,7 +4,7 @@
 ..\obj\can_queue.o: ..\SYSTEM\sys\sys.h
 ..\obj\can_queue.o: ..\USER\stm32f10x.h
 ..\obj\can_queue.o: ..\CORE\core_cm3.h
-..\obj\can_queue.o: F:\mdk\ARM\ARMCC\Bin\..\include\stdint.h
+..\obj\can_queue.o: D:\mdk5\ARM\ARMCC\Bin\..\include\stdint.h
 ..\obj\can_queue.o: ..\USER\system_stm32f10x.h
 ..\obj\can_queue.o: ..\USER\stm32f10x_conf.h
 ..\obj\can_queue.o: ..\STM32F10x_FWLib\inc\stm32f10x_adc.h
@@ -32,10 +32,12 @@
 ..\obj\can_queue.o: ..\STM32F10x_FWLib\inc\stm32f10x_wwdg.h
 ..\obj\can_queue.o: ..\STM32F10x_FWLib\inc\misc.h
 ..\obj\can_queue.o: ..\SYSTEM\delay\delay.h
+..\obj\can_queue.o: ..\HARDWARE\crc16.h
 ..\obj\can_queue.o: ..\SYSTEM\usart\usart.h
-..\obj\can_queue.o: F:\mdk\ARM\ARMCC\Bin\..\include\stdio.h
+..\obj\can_queue.o: D:\mdk5\ARM\ARMCC\Bin\..\include\stdio.h
 ..\obj\can_queue.o: ..\HARDWARE\usart_queue.h
 ..\obj\can_queue.o: ..\HARDWARE\can.h
 ..\obj\can_queue.o: ..\HARDWARE\can_queue.h
 ..\obj\can_queue.o: ..\HARDWARE\app.h
-..\obj\can_queue.o: F:\mdk\ARM\ARMCC\Bin\..\include\string.h
+..\obj\can_queue.o: ..\HARDWARE\protocol_parse.h
+..\obj\can_queue.o: D:\mdk5\ARM\ARMCC\Bin\..\include\string.h

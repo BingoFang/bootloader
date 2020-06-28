@@ -232,12 +232,12 @@ uint8_t CAN_SendMsg(uint8_t *msg, uint8_t len)
 {
 	uint8_t i,ret;
 	CanTxMsg TxMessage;
-	TxMessage.ExtId = 0x1234;
+	TxMessage.ExtId = (Read_CAN_Address() << CMD_WIDTH);
 	TxMessage.IDE = CAN_ID_EXT;
 	TxMessage.RTR = CAN_RTR_DATA;
 	TxMessage.DLC = len;
 	
-	for (i = 0;i < 8; i++)
+	for (i = 0;i < len; i++)
 		TxMessage.Data[i] = msg[i];
 	ret = CAN_WriteData(&TxMessage);
 	return ret;
@@ -274,7 +274,8 @@ void CAN1_RX0_IRQHandler(void)
 	{
 		CAN_Receive(CAN1, CAN_FIFO0, &CAN_RxMessage);
 		CAN_ClearITPendingBit(CAN1, CAN_IT_FMP0);
-		CAN_RxMsgFlag = 1;
+		
+		CanQueueWrite(&can_queue_send,(can_frame_t *)&CAN_RxMessage);
 	}
 	#else
 	/* CAN Interrupt */

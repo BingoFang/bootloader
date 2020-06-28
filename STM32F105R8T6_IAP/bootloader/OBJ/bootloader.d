@@ -4,7 +4,7 @@
 ..\obj\bootloader.o: ..\SYSTEM\sys\sys.h
 ..\obj\bootloader.o: ..\USER\stm32f10x.h
 ..\obj\bootloader.o: ..\CORE\core_cm3.h
-..\obj\bootloader.o: F:\mdk\ARM\ARMCC\Bin\..\include\stdint.h
+..\obj\bootloader.o: D:\mdk5\ARM\ARMCC\Bin\..\include\stdint.h
 ..\obj\bootloader.o: ..\USER\system_stm32f10x.h
 ..\obj\bootloader.o: ..\USER\stm32f10x_conf.h
 ..\obj\bootloader.o: ..\STM32F10x_FWLib\inc\stm32f10x_adc.h
@@ -34,7 +34,7 @@
 ..\obj\bootloader.o: ..\SYSTEM\delay\delay.h
 ..\obj\bootloader.o: ..\HARDWARE\crc16.h
 ..\obj\bootloader.o: ..\SYSTEM\usart\usart.h
-..\obj\bootloader.o: F:\mdk\ARM\ARMCC\Bin\..\include\stdio.h
+..\obj\bootloader.o: D:\mdk5\ARM\ARMCC\Bin\..\include\stdio.h
 ..\obj\bootloader.o: ..\HARDWARE\usart_queue.h
 ..\obj\bootloader.o: ..\HARDWARE\can.h
 ..\obj\bootloader.o: ..\HARDWARE\can_queue.h

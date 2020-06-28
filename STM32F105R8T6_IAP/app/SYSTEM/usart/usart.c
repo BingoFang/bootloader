@@ -1,22 +1,6 @@
-#include "sys.h"
-#include "usart.h"	  
+#include "main.h"  
  
-//////////////////////////////////////////////////////////////////////////////////	 
-//V1.3修改说明 
-//支持适应不同频率下的串口波特率设置.
-//加入了对printf的支持
-//增加了串口接收命令功能.
-//修正了printf第一个字符丢失的bug
-//V1.4修改说明
-//1,修改串口初始化IO的bug
-//2,修改了USART_RX_STA,使得串口最大接收字节数为2的14次方
-//3,增加了USART_REC_LEN,用于定义串口最大允许接收的字节数(不大于2的14次方)
-//4,修改了EN_USART1_RX的使能方式
-//V1.5修改说明
-//1,增加了对UCOSII的支持
-////////////////////////////////////////////////////////////////////////////////// 	  
  
-
 //////////////////////////////////////////////////////////////////
 //加入以下代码,支持printf函数,而不需要选择use MicroLIB	  
 #if 1
@@ -30,7 +14,7 @@ struct __FILE
 
 FILE __stdout;       
 //定义_sys_exit()以避免使用半主机模式    
-_sys_exit(int x) 
+void _sys_exit(int x) 
 { 
 	x = x; 
 } 
@@ -84,6 +68,22 @@ void USART1_Init(u32 bound){
 
 }
 
+/***********************************************************
+ * 函数名称：USART1_Send_Data
+ * 功能描述：串口1发送函数
+ * 输入参数：*buf	字符串首地址	len	数据长度
+ * 输出参数：无
+***********************************************************/
+void USART1_Send_Data(u8 *buf, u8 len)
+{
+	USART_ClearFlag(USART1, USART_FLAG_TC); //防止第一个字符丢失
+  for(u8 i=0; i<len; i++)	//循环发送数据
+	{
+		USART_SendData(USART1, buf[i]);
+		while(USART_GetFlagStatus(USART1, USART_FLAG_TC) == RESET);
+	}
+}
+
 void USART1_IRQHandler(void)                	//串口1中断服务程序
 {
 	u8 Res;
@@ -91,6 +91,7 @@ void USART1_IRQHandler(void)                	//串口1中断服务程序
 	if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)  //接收中断(接收到的数据必须是0x0d 0x0a结尾)
 	{
 		Res =USART_ReceiveData(USART1);//(USART1->DR);	//读取接收到的数据
+		UsartQueuePush(&usart1_send,Res);
   } 
 } 
 
