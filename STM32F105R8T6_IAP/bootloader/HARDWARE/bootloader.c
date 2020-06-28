@@ -78,3 +78,4 @@ void USART_BOOT_JumpToApplication(uint32_t Addr)
 		Jump_To_Application();
 	}
 }
+

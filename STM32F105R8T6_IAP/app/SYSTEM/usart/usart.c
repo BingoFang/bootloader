@@ -44,7 +44,7 @@ int fputc(int ch, FILE *f)
 #endif 
 
  
-void uart_init(u32 bound){
+void USART1_Init(u32 bound){
   //GPIO∂Àø⁄…Ë÷√
   GPIO_InitTypeDef GPIO_InitStructure;
 	USART_InitTypeDef USART_InitStructure;

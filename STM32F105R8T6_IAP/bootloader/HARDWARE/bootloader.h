@@ -3,6 +3,10 @@
 
 #include "sys.h"  
 
+#define CMD_WIDTH   4
+#define CMD_MASK    0xF
+#define ADDR_MASK   0x1FFFFFF
+
 #define APP_EXE_FLAG_START_ADDR    ((uint32_t)0x08002800)//APP程序成功运行标志存储地址
 #define APP_START_ADDR             ((uint32_t)0x08003000)//APP程序起始地址
 

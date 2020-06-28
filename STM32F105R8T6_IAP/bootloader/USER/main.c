@@ -23,57 +23,36 @@ IAP升级区域划分,flash:64kb,sram:64kb,page size 2kb
 ==========================================
 */
 
-//粗延时函数，微秒
-void soft_delay_us(u16 time)
-{
-	u16 i=0;
-	while(time--)
-	{
-		i=10;//自己定义
-		while(i--);
-	}
-}
-	
-//毫秒级的延时
-void soft_delay_ms(u16 time)
-{
-	u16 i=0;
-	while(time--)
-	{
-		i=12000;//自己定义
-		while(i--);
-	}
-}
-
-//本地直接跳转app
+//本地测试跳转app
 void LocalJumpApp(void)
 {
-	  if((*((uint32_t *)APP_START_ADDR)!=0xFFFFFFFF)){
-    USART_BOOT_JumpToApplication(APP_START_ADDR);
-    }
+	if((*((uint32_t *)APP_START_ADDR) != 0xFFFFFFFF)){
+		USART_BOOT_JumpToApplication(APP_START_ADDR);
+  }
 }   
+
 
 int main(void)
 { 
-  NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);// 设置中断优先级分组2
-	delay_init();	    	 //延时函数初始化	  
-	uart_init(256000);	 //串口初始化为256000
-	LED_Init();		  		 //初始化与LED连接的硬件接口
-	
-		if(*((uint32_t *)APP_EXE_FLAG_START_ADDR)==0x78563412){
-		LED4 = 1;
-		delay_ms(1000);
+	if(*((uint32_t *)APP_EXE_FLAG_START_ADDR)==0x78563412){
     USART_BOOT_JumpToApplication(APP_START_ADDR);
   }
 	__set_PRIMASK(0);//开启总中断
 	
+  NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);//设置中断优先级分组2
+	delay_init();	    			 											 //延时函数初始化	  
+	LED_Init();		  		 													 //初始化与LED连接的硬件接口
+	CAN_Configuration(125000);										 //CAN波特率125000
+	CanQueueInit();																 //CAN队列初始化
+	USART1_Init(256000); 													 //串口初始化为256000
+	UsartQueueInit(&usart1_send);									 //串口队列初始化
+
 	LED3 = 1;
 	delay_ms(1000);
-
-	LocalJumpApp();
 	
 	while(1)
 	{
+	
 	}   	   
 }
 

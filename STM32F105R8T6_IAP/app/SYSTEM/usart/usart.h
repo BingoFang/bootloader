@@ -16,7 +16,7 @@
 //V1.5修改说明
 //1,增加了对UCOSII的支持
 
-void uart_init(u32 bound);
+void USART1_Init(u32 bound);
 
 #endif
 

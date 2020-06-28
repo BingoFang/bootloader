@@ -426,6 +426,11 @@
               <FileType>1</FileType>
               <FilePath>..\HARDWARE\app.c</FilePath>
             </File>
+            <File>
+              <FileName>can_queue.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\HARDWARE\can_queue.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
