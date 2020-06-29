@@ -14,12 +14,12 @@ typedef enum
 
 typedef struct
 {
-	uint8_t erase;
 	uint8_t write_info;
 	uint8_t write_bin;
 	uint8_t check_version;
 	uint8_t set_baund;
 	uint8_t excute;
+	uint8_t request;
 	uint8_t cmd_success;
 	uint8_t cmd_failed;
 }cmd_list_t;
@@ -44,7 +44,7 @@ typedef struct
 	void (*handle)(uint8_t *data, uint8_t len);
 }protocol_entry_t;
 
-
+void dev_active_request(void);
 void prepare_protocol(uint8_t rx_data);
 void handle_usart_queue(void);
 void handle_can_queue(void);

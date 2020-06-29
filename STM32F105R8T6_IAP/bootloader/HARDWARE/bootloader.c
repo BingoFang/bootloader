@@ -2,9 +2,6 @@
 
 typedef void (*pFunction)(void);
 
-#define PAGE_SIZE                         (0x800)    /* 2 Kbytes */
-#define FLASH_SIZE                        (0x10000)  /* 64 kBytes */
-
 /**
   * @brief  将数据烧写到指定地址的Flash中 。
   * @param  Address Flash起始地址。

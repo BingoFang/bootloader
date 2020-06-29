@@ -1,5 +1,4 @@
 #include "main.h"
-#include <string.h>
 
 /*
 IAP升级区域划分,flash:64kb,sram:64kb,page size 2kb
@@ -23,8 +22,6 @@ IAP升级区域划分,flash:64kb,sram:64kb,page size 2kb
 	IRAM			0x20000000			0x10000 		
 ==========================================
 */
-
-
 
 
 int main(void)
@@ -51,6 +48,7 @@ int main(void)
 	LED4 = 1;
 	delay_ms(1000);
 	LED4 = 0;
+	USART1_Send_Data("stm32105-app",strlen("stm32105-app"));
 	
 	while(1)
 	{

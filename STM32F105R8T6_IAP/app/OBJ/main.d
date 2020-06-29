@@ -40,4 +40,3 @@
 ..\obj\main.o: ..\HARDWARE\can_queue.h
 ..\obj\main.o: ..\HARDWARE\app.h
 ..\obj\main.o: ..\HARDWARE\protocol_parse.h
-..\obj\main.o: D:\mdk5\ARM\ARMCC\Bin\..\include\string.h

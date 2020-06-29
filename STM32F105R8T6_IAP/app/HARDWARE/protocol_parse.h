@@ -14,7 +14,6 @@ typedef enum
 
 typedef struct
 {
-	uint8_t erase;
 	uint8_t write_info;
 	uint8_t write_bin;
 	uint8_t check_version;

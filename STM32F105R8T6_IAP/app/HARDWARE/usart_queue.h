@@ -12,7 +12,7 @@ typedef enum
 } usart_queue_status_t;
 
  
-#define USART_QUEUE_SIZE  1024
+#define USART_QUEUE_SIZE  256
 
 typedef struct
 {  
