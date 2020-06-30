@@ -31,6 +31,11 @@ void LED1_OFF(void)
 		GPIO_SetBits(LED1_PORT, LED1_PIN);
 }
 
+void LED1_Toggle(void)
+{
+		LED1_PORT->ODR ^= LED1_PIN; 
+}
+
 /****************************************************
 函数功能：LED2开关
 输入参数：无

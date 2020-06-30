@@ -193,45 +193,6 @@ void CAN_Configuration(uint32_t BaudRate)
 }
 
 
-///* 测试interrupt */
-//uint8_t ret;
-//TestStatus CAN_Interrupt(void)
-//{
-//	CanTxMsg TxMessage;
-//	uint32_t i = 0;
-//	
-//  /* transmit 1 message */
-//  TxMessage.StdId = 0;
-//  TxMessage.ExtId = 0x1234;
-//  TxMessage.IDE = CAN_ID_EXT;
-//  TxMessage.RTR = CAN_RTR_DATA;
-//  TxMessage.DLC = 2;
-//  TxMessage.Data[0] = 0xDE;
-//  TxMessage.Data[1] = 0xCA;
-//  CAN_Transmit(CAN, &TxMessage);
-
-//  /* initialize the value that will be returned */
-//  ret = 0xFF;
-//       
-//  /* Receive message with interrupt handling */
-//  i = 0;
-//  while((ret ==  0xFF) && (i < 0xFFF))
-//  {
-//    i++;
-//  }
-//  
-//  if (i ==  0xFFF)
-//  {
-//    ret = 0;  
-//  }
-
-//  /* disable interrupt handling */
-//  CAN_ITConfig(CAN, CAN_IT_FMP0, DISABLE);
-
-//  return (TestStatus)ret;		
-//}
-
-
 /**
   * @brief  发送一帧CAN数据
   * @param  CANx CAN通道号
@@ -262,7 +223,8 @@ void CEC_CAN_IRQHandler(void)
 	{
 		CAN_Receive(CAN, CAN_FIFO0, &CAN_RxMessage);
 		CAN_ClearITPendingBit(CAN, CAN_IT_FMP0);
-		CAN_RxMsgFlag = 1;
+//		CAN_RxMsgFlag = 1;  //采用前后台轮询标记符，大量数据包来不及处理会发生丢包
+		CanQueueWrite(&can_queue_send,(can_frame_t *)&CAN_RxMessage);
 	}
 }
 
@@ -271,9 +233,9 @@ void CEC_CAN_IRQHandler(void)
   * @param  None
   * @retval None
   */
-uint16_t Read_CAN_Address(void)
+uint8_t Read_CAN_Address(void)
 {
-  return 0x1234;//返回的地址值需要根据实际情况进行修改
+  return 0x01;//返回的地址值需要根据实际情况进行修改
 }
 
 /*********************************END OF FILE**********************************/

@@ -191,44 +191,6 @@ void CAN_Configuration(uint32_t BaudRate)
 }
 
 
-///* 测试interrupt */
-//uint8_t ret;
-//TestStatus CAN_Interrupt(void)
-//{
-//	CanTxMsg TxMessage;
-//	uint32_t i = 0;
-//	
-//  /* transmit 1 message */
-//  TxMessage.ExtId = 0x1234;
-//  TxMessage.IDE = CAN_ID_EXT;
-//  TxMessage.RTR = CAN_RTR_DATA;
-//  TxMessage.DLC = 2;
-//  TxMessage.Data[0] = 0xDE;
-//  TxMessage.Data[1] = 0xCA;
-//  CAN_Transmit(CAN1, &TxMessage);
-
-//  /* initialize the value that will be returned */
-//  ret = 0xFF;
-//       
-//  /* Receive message with interrupt handling */
-//  i = 0;
-//  while((ret ==  0xFF) && (i < 0xFFF))
-//  {
-//    i++;
-//  }
-//  
-//  if (i ==  0xFFF)
-//  {
-//    ret = 0;  
-//  }
-
-//  /* disable interrupt handling */
-//  CAN_ITConfig(CAN1, CAN_IT_FMP0, DISABLE);
-
-//  return (TestStatus)ret;		
-//}
-
-
 /**
   * @brief  发送一帧CAN数据
   * @param  CANx CAN通道号
@@ -255,7 +217,6 @@ uint8_t CAN_WriteData(CanTxMsg *TxMessage)
   */
 void CAN1_RX0_IRQHandler(void)
 {
-	#if 1
 	if (CAN_GetITStatus(CAN1, CAN_IT_FMP0) != RESET)
 	{
 		CAN_Receive(CAN1, CAN_FIFO0, &CAN_RxMessage);
@@ -263,33 +224,6 @@ void CAN1_RX0_IRQHandler(void)
 		
 		CanQueueWrite(&can_queue_send,(can_frame_t *)&CAN_RxMessage);
 	}
-	#else
-	/* CAN Interrupt */
-	if(CAN_GetITStatus(CAN1, CAN_IT_FMP0) != RESET)
-  {
-    CanRxMsg RxMessage;
-    
-    RxMessage.ExtId = 0x00;
-    RxMessage.IDE = 0;
-    RxMessage.DLC = 0;
-    RxMessage.FMI = 0;
-    RxMessage.Data[0] = 0x00;
-    RxMessage.Data[1] = 0x00;
-    
-    CAN_Receive(CAN1, CAN_FIFO0, &RxMessage);
-		CAN_ClearITPendingBit(CAN1, CAN_IT_FMP0);
-    
-    if((RxMessage.ExtId == 0x1234) && (RxMessage.IDE == CAN_ID_EXT)
-       && (RxMessage.DLC == 2) && ((RxMessage.Data[1]|(RxMessage.Data[0]<<8)) == 0xDECA))
-    {
-      ret = 1; 
-    }
-    else
-    {
-      ret = 0; 
-    }
-  }
-	#endif
 }
 
 /**

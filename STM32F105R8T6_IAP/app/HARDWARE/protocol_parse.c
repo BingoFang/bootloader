@@ -56,10 +56,8 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 	/* 设置波特率 */
 	if (uart_cmd == cmd_list.set_baundrate)
 	{
-		__set_PRIMASK(1);
 		baund_rate = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16) 
 							| (data_info_p->data[2] << 8) | (data_info_p->data[3] << 0);
-		__set_PRIMASK(0);
 		
 		data_info_p->cmd |= ACK_CMD;
 		data_info_p->data[0] = cmd_list.cmd_success;
@@ -70,6 +68,7 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 		USART1_Init(baund_rate);  //在未改变波特率前将应答发出，修改正确波特率后通信。
 	}
 	
+	/* 查询软件版本号 */
 	if (uart_cmd == cmd_list.check_version)
 	{
 		data_info_p->cmd |= ACK_CMD;
@@ -86,6 +85,7 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 		ack_uart_protocol(data_info_p, 10, UART_PROTOCOL_PORT);
 	}
 	
+	/* 执行程序跳转 */
 	if (uart_cmd == cmd_list.excute)
 	{
 		exe_type = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16)
@@ -126,7 +126,7 @@ static void handle_can_protocol(uint8_t *data, uint8_t len)
 	if (can_cmd == cmd_list.write_info)
 	{
 		addr_offset = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16) 
-							| (data_info_p->data[2] << 8) | (data_info_p->data[3] << 0);
+								| (data_info_p->data[2] << 8) | (data_info_p->data[3] << 0);
 		data_size = (data_info_p->data[4] << 24) | (data_info_p->data[5] << 16) 
 							| (data_info_p->data[6] << 8) | (data_info_p->data[7] << 0);		
 		data_index = 0;
@@ -141,13 +141,11 @@ static void handle_can_protocol(uint8_t *data, uint8_t len)
 		TxMessage.Data[5] = (uint8_t)(data_size >> 16);
 		TxMessage.Data[6] = (uint8_t)(data_size >> 8);
 		TxMessage.Data[7] = (uint8_t)(data_size >> 0);
-		
 		TxMessage.DLC = 8;
 		CAN_WriteData(&TxMessage);
 	}
 	
-	
-	/* 接收好数据后，CAN连续发送数据，不进行数据校验 */
+	/* 接收固件数据，缓存满2KB后拆包组成CAN数据帧逐包转发，不进行数据校验 */
 	if (can_cmd == cmd_list.write_bin)
 	{
 		if ((data_index < data_size) && (data_index < (PAGE_SIZE + 2)))
@@ -160,29 +158,29 @@ static void handle_can_protocol(uint8_t *data, uint8_t len)
 		
 		if ((data_index >= data_size) || (data_index >= (PAGE_SIZE + 2)))
 		{
-				uint16_t len_sub_integer = data_index / 8;
-				uint16_t len_sub_remain = data_index % 8;
-				uint16_t len_sub_total = len_sub_integer + (len_sub_remain > 0 ? 1 : 0);
-				uint16_t package_num;
+			uint16_t len_sub_integer = data_index / 8;
+			uint16_t len_sub_remain = data_index % 8;
+			uint16_t len_sub_total = len_sub_integer + (len_sub_remain > 0 ? 1 : 0);
+			uint16_t package_num;
 			
-				TxMessage.ExtId = (can_addr << CMD_WIDTH) | can_cmd;
+			TxMessage.ExtId = (can_addr << CMD_WIDTH) | can_cmd;
 					
-				for (package_num = 0; package_num < len_sub_total; package_num++)
+			for (package_num = 0; package_num < len_sub_total; package_num++)
+			{
+				memset(TxMessage.Data, 0, 8);
+				if (package_num < len_sub_integer)
 				{
-					memset(TxMessage.Data, 0, 8);
-					if (package_num < len_sub_integer)
-					{
-						memcpy(TxMessage.Data, &data_temp[package_num * 8], 8);
-						TxMessage.DLC = 8;
-						CAN_WriteData(&TxMessage);
-					}
-					else
-					{
-						memcpy(TxMessage.Data, &data_temp[package_num * 8], len_sub_remain);
-						TxMessage.DLC = len_sub_remain;
-						CAN_WriteData(&TxMessage);
-					}
+					memcpy(TxMessage.Data, &data_temp[package_num * 8], 8);
+					TxMessage.DLC = 8;
+					CAN_WriteData(&TxMessage);
 				}
+				else
+				{
+					memcpy(TxMessage.Data, &data_temp[package_num * 8], len_sub_remain);
+					TxMessage.DLC = len_sub_remain;
+					CAN_WriteData(&TxMessage);
+				}
+			}
 		}	
 	}
 	
@@ -198,7 +196,6 @@ static void handle_can_protocol(uint8_t *data, uint8_t len)
 		TxMessage.Data[1] = (uint8_t)(baund_rate >> 16);
 		TxMessage.Data[2] = (uint8_t)(baund_rate >> 8);
 		TxMessage.Data[3] = (uint8_t)(baund_rate >> 0);
-		
 		TxMessage.DLC = 4;
 		CAN_WriteData(&TxMessage);
 	}
@@ -212,6 +209,7 @@ static void handle_can_protocol(uint8_t *data, uint8_t len)
 		CAN_WriteData(&TxMessage);
 	}
 	
+	/* 执行程序跳转 */
 	if (data_info_p->cmd == cmd_list.excute)
 	{
 		exe_type = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16)
@@ -223,7 +221,6 @@ static void handle_can_protocol(uint8_t *data, uint8_t len)
 		TxMessage.Data[1] = (uint8_t)(exe_type >> 16);
 		TxMessage.Data[2] = (uint8_t)(exe_type >> 8);
 		TxMessage.Data[3] = (uint8_t)(exe_type >> 0);
-		
 		TxMessage.DLC = 4;
 		CAN_WriteData(&TxMessage);
 	}
@@ -325,20 +322,19 @@ void prepare_protocol(uint8_t rx_data)
 /* 处理由cpu发来的串口队列数据 */
 void handle_usart_queue(void)
 {
-	uint8_t cpu_send_mcu_uart_data;
-	if (USART_QUEUE_OK == UsartQueuePop(&usart1_send, &cpu_send_mcu_uart_data))
+	uint8_t from_cpu_uart_data;
+	if (USART_QUEUE_OK == UsartQueuePop(&usart1_send, &from_cpu_uart_data))
 	{
-		prepare_protocol(cpu_send_mcu_uart_data);
+		prepare_protocol(from_cpu_uart_data);
 	}
 }
 
-/* 处理072回复的can队列数据，通过uart发回cpu */
+/* 处理F072回应的CAN数据帧，通过uart发回cpu */
 void handle_can_queue(void)
 {
-	can_frame_t mcu_recv_mcu_can_data;
-	if (CAN_OK == CanQueueRead(&can_queue_send, &mcu_recv_mcu_can_data))
+	can_frame_t from_mcu_can_data;
+	if (CAN_OK == CanQueueRead(&can_queue_send, &from_mcu_can_data))
 	{
-		/* 数据帧整合到protocol字符格式中,串口回复 */
-		ack_uart_protocol((data_info_t *)&mcu_recv_mcu_can_data, sizeof(mcu_recv_mcu_can_data), CAN_PROTOCOL_PORT);
+		/* 拆分CAN数据帧，重组为串口格式回应CPU */
 	}
 }

@@ -3,8 +3,8 @@
 
 #define HEAD  					 0xAA
 #define TAIL  					 0x55
-#define DETACH_DATA_INFO_SIZE   6
 #define ACK_CMD					 0xF0
+#define DETACH_DATA_INFO_SIZE   6
 
 #define UART_BL_BOOT     0x55555555
 #define UART_BL_APP      0xAAAAAAAA
@@ -76,17 +76,18 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 		 data_size: 整page大小写入，不足1 page的写入剩余data_size */
 	if (uart_cmd == cmd_list.write_info)
 	{
-		__set_PRIMASK(1);
 		addr_offset = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16) 
 							| (data_info_p->data[2] << 8) | (data_info_p->data[3] << 0);
 		start_addr = APP_START_ADDR + addr_offset;
-		FLASH_Unlock();
-		ret = USART_BOOT_ErasePage(start_addr, start_addr);
-    FLASH_Lock();
-		
+	
 		data_size = (data_info_p->data[4] << 24) | (data_info_p->data[5] << 16) 
 							| (data_info_p->data[6] << 8) | (data_info_p->data[7] << 0);
 		data_index = 0;
+		
+		__set_PRIMASK(1);
+		FLASH_Unlock();
+		ret = USART_BOOT_ErasePage(start_addr, start_addr);
+    FLASH_Lock();
 		__set_PRIMASK(0);
 		
 		if (ret == FLASH_COMPLETE)
@@ -109,12 +110,10 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 	{
 		if ((data_index < data_size) && (data_index < (PAGE_SIZE + 2)))
 		{
-			__set_PRIMASK(1);
 			for (i = 0; i < (len - 2); i++)  //减去cmd，reserve
 			{
 				data_temp[data_index++] = data_info_p->data[i];
 			}
-			__set_PRIMASK(0);
 		}
 		
 		if ((data_index >= data_size) || (data_index >= (PAGE_SIZE + 2)))
@@ -169,10 +168,8 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 	/* 设置波特率 */
 	if (uart_cmd == cmd_list.set_baundrate)
 	{
-		__set_PRIMASK(1);
 		baund_rate = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16) 
 							| (data_info_p->data[2] << 8) | (data_info_p->data[3] << 0);
-		__set_PRIMASK(0);
 		
 		data_info_p->cmd |= ACK_CMD;
 		data_info_p->data[0] = cmd_list.cmd_success;

@@ -36,7 +36,7 @@ static const unsigned short crc16tab[256]= {
 	0x6e17,0x7e36,0x4e55,0x5e74,0x2e93,0x3eb2,0x0ed1,0x1ef0
 };
   
-__inline unsigned short crc16_ccitt(const unsigned char *buf, unsigned int len)
+__inline unsigned short crc16_xmodem(const unsigned char *buf, unsigned int len)
 {
 	register unsigned int counter;
 	register unsigned short crc = 0;
@@ -44,7 +44,7 @@ __inline unsigned short crc16_ccitt(const unsigned char *buf, unsigned int len)
 		crc = (crc<<8) ^ crc16tab[((crc>>8) ^ *(unsigned char *)buf++)&0x00FF];
 	return crc;
 }
-extern __inline unsigned short crc16_ccitt(const unsigned char *buf, unsigned int len);
+extern __inline unsigned short crc16_xmodem(const unsigned char *buf, unsigned int len);
 
 #endif /* _CRC16_H_ */
 

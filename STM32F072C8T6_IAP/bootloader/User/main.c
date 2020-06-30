@@ -34,7 +34,6 @@ IAP升级区域划分,flash:64kb,sram:16kb,page size 2kb
 
 extern CanRxMsg CAN_RxMessage;
 extern volatile uint8_t CAN_RxMsgFlag;//接收到CAN数据后的标志
-uint8_t CAN_TxMsgBuf[8] = {0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08};
 
 //本地直接跳转app
 void LocalJumpApp(void)
@@ -47,6 +46,7 @@ void LocalJumpApp(void)
 
 int main(void)
 {
+	uint8_t i;
 	LED_Init();
 	delay_init();
 	
@@ -58,31 +58,13 @@ int main(void)
   __set_PRIMASK(0);//开启总中断
   CAN_Configuration(125000);	//can通信配置
 	
-	LED1_ON();
+	LED3_ON(); LED4_ON();
 	delay_ms(2000);
+	LED3_ON(); LED4_OFF();		
 	
   while (1)
   {	
-//		if(CAN_RxMsgFlag){ 
-//    CAN_BOOT_ExecutiveCommand(&CAN_RxMessage);
-//    CAN_RxMsgFlag = 0;
-//		}
-		if (CAN_RxMsgFlag)
-		{
-			CAN_RxMsgFlag = 0;
-			if(0 == strncmp((char *)CAN_TxMsgBuf, (char *)CAN_RxMessage.Data, sizeof(CAN_TxMsgBuf)))
-			{
-				LED3_ON();
-				delay_ms(2000);
-				LED3_OFF();
-			}
-			else
-			{
-				LED4_ON();
-				delay_ms(2000);
-				LED4_OFF();				
-			} 
-		}
+		handle_can_queue();
   } 
 }
 

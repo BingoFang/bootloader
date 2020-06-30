@@ -42,7 +42,7 @@ void LocalJumpApp(void)
 int main(void)
 { 
 	/* 升级标志，直接跳转app程序 */
-	if(*((uint32_t *)APP_EXE_FLAG_START_ADDR)==0x78563412)
+	if(*((uint32_t *)APP_EXE_FLAG_START_ADDR) == 0x78563412)
 	{
     USART_BOOT_JumpToApplication(APP_START_ADDR);
   }
@@ -56,11 +56,10 @@ int main(void)
 
 	LED3 = 1;
 	
-	dev_active_request();	//在bootloader模式下主动请求
+	dev_active_request();													 //在bootloader模式下主动请求
 	
 	/* 网关上传新固件，下发命令，串口接收处理；（1）主动请求，设备未在线时上线后主动请求 （2）死等下发，确保F105的正常应答非常重要！
-		 多机升级，can设备有ID标识，设备逐个交互升级，下发升级版本号由网关决定。
-	*/
+		 多机升级，can设备有ID标识，设备逐个交互升级，下发升级版本号由网关决定。*/
 	while(1)
 	{
 		handle_usart_queue();

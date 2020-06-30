@@ -23,7 +23,7 @@ typedef enum
 } can_queue_status_t;
 
 
-typedef CanTxMsg  can_frame_t;
+typedef CanRxMsg  can_frame_t;
 
 typedef struct
 {
