@@ -17,7 +17,7 @@ typedef struct
 	uint8_t write_info;
 	uint8_t write_bin;
 	uint8_t check_version;
-	uint8_t set_baund;
+	uint8_t set_baundrate;
 	uint8_t excute;
 	uint8_t request;
 	uint8_t cmd_success;
@@ -25,14 +25,19 @@ typedef struct
 }cmd_list_t;
 
 
-typedef __packed struct
+typedef  struct
 {
 	uint8_t cmd;
+	union
+	{
+		uint8_t reserve;
+		uint8_t addr;
+	}option;
 	uint8_t data[128];  //串口发送每包bin文件为1024整除(建议128 B)
 }data_info_t;
 
 
-typedef __packed struct
+typedef struct
 {
 	uint8_t port;
 	data_info_t data_info;

@@ -15,18 +15,17 @@
 #define CAN_BL_APP      0xAAAAAAAA
 #define FW_TYPE         CAN_BL_BOOT
 
-typedef struct _CBL_CMD_LIST{
-  //Bootloader相关命令
-  unsigned char Erase;        //擦出APP储存扇区数据
-  unsigned char WriteInfo;    //设置多字节写数据相关参数（写起始地址，数据量）
-  unsigned char Write;        //以多字节形式写数据
-  unsigned char Check;        //检测节点是否在线，同时返回固件信息
-  unsigned char SetBaudRate;  //设置节点波特率
-  unsigned char Excute;       //执行固件
-  //节点返回状态
-  unsigned char CmdSuccess;   //命令执行成功
-  unsigned char CmdFaild;     //命令执行失败
-} CBL_CMD_LIST,*PCBL_CMD_LIST;
+typedef struct
+{
+	uint8_t write_info;
+	uint8_t write_bin;
+	uint8_t check_version;
+	uint8_t set_baundrate;
+	uint8_t excute;
+	uint8_t request;
+	uint8_t cmd_success;
+	uint8_t cmd_failed;
+}cmd_list_t;
 
 uint32_t GetSector(uint32_t Address);
 FLASH_Status CAN_BOOT_ErasePage(uint32_t StartPageAddr,uint32_t EndPageAddr);

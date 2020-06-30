@@ -421,16 +421,6 @@
               <FileType>1</FileType>
               <FilePath>..\HARDWARE\protocol_parse.c</FilePath>
             </File>
-            <File>
-              <FileName>can.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\HARDWARE\can.c</FilePath>
-            </File>
-            <File>
-              <FileName>can_queue.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\HARDWARE\can_queue.c</FilePath>
-            </File>
           </Files>
         </Group>
         <Group>
@@ -495,11 +485,6 @@
               <FileName>stm32f10x_flash.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\STM32F10x_FWLib\src\stm32f10x_flash.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f10x_can.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F10x_FWLib\src\stm32f10x_can.c</FilePath>
             </File>
           </Files>
         </Group>

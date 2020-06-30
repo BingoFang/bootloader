@@ -9,7 +9,7 @@
 #define UART_BL_BOOT     0x55555555
 #define UART_BL_APP      0xAAAAAAAA
 #define FW_TYPE          UART_BL_BOOT
-#define FW_VER					 0x00010001		//v1.1
+#define FW_VER					 0x00010000		//v1.0
 #define ACTIVE_REQUEST   0xFFFFFFFF
 
 cmd_list_t cmd_list = 
@@ -17,7 +17,7 @@ cmd_list_t cmd_list =
 	.write_info 		= 0x01,
 	.write_bin 			= 0x02,
 	.check_version 	= 0x03,
-	.set_baund 			= 0x04,
+	.set_baundrate 	= 0x04,
 	.excute 				= 0x05,
 	.request        = 0x06,
 	.cmd_success 		= 0x08,
@@ -40,23 +40,24 @@ static void ack_uart_protocol(data_info_t *data,uint8_t len, uint8_t port)
 	uart_tx_buf[cnt++] = (uint8_t)(crc & 0xFF);
 	uart_tx_buf[cnt++] = TAIL;
 	
-	USART1_Send_Data(uart_tx_buf, cnt);  //不定长数据应答
+	USART1_SendData(uart_tx_buf, cnt);  //不定长数据应答
 }
 
 void dev_active_request(void)
 {
-	data_info_t data_info_request;
-	data_info_request.cmd = cmd_list.request;
+	data_info_t data_info_request = {0};
+	data_info_request.cmd = cmd_list.request | ACK_CMD;
 	data_info_request.data[0] = (uint8_t)(ACTIVE_REQUEST >> 24); 
 	data_info_request.data[1] = (uint8_t)(ACTIVE_REQUEST >> 16);
 	data_info_request.data[2] = (uint8_t)(ACTIVE_REQUEST >> 8);	 
 	data_info_request.data[3] = (uint8_t)(ACTIVE_REQUEST >> 0); 
-	ack_uart_protocol(&data_info_request, 5, UART_PROTOCOL_PORT);
+	ack_uart_protocol(&data_info_request, 6, UART_PROTOCOL_PORT);
 }
 
 static void handle_uart_protocol(uint8_t *data, uint8_t len)
 {
 	uint8_t ret,i;
+	uint8_t uart_reserve,uart_cmd;
 	uint16_t crc_data;
 	uint32_t exe_type;
 	uint32_t baund_rate;
@@ -67,12 +68,13 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 	
 	/* 擦除固件所需flash大小空间,每页写入。 */
 	data_info_t *data_info_p = (data_info_t *)data;
-	
+	uart_cmd = data_info_p->cmd;
+	uart_reserve = data_info_p->option.reserve;
 	
 	/* addr_offset:按page首地址偏移
 		 start_addr:整page首地址
 		 data_size: 整page大小写入，不足1 page的写入剩余data_size */
-	if (data_info_p->cmd == cmd_list.write_info)
+	if (uart_cmd == cmd_list.write_info)
 	{
 		__set_PRIMASK(1);
 		addr_offset = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16) 
@@ -99,16 +101,16 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 		}
 		
 		/* 串口回复 */
-		ack_uart_protocol(data_info_p, 2, UART_PROTOCOL_PORT);
+		ack_uart_protocol(data_info_p, 3, UART_PROTOCOL_PORT);
 	}
 	
 	/* 持续接收完整包完毕后，验证正确后写入 */
-	if (data_info_p->cmd == cmd_list.write_bin)
+	if (uart_cmd == cmd_list.write_bin)
 	{
 		if ((data_index < data_size) && (data_index < (PAGE_SIZE + 2)))
 		{
 			__set_PRIMASK(1);
-			for (i = 0; i < (len - 1); i++)  //减去cmd
+			for (i = 0; i < (len - 2); i++)  //减去cmd，reserve
 			{
 				data_temp[data_index++] = data_info_p->data[i];
 			}
@@ -142,7 +144,7 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 					}
 					
 					/* 串口回复 */
-					ack_uart_protocol(data_info_p, 2, UART_PROTOCOL_PORT);					
+					ack_uart_protocol(data_info_p, 3, UART_PROTOCOL_PORT);					
 				}	
 				else //未写入flash，重发此包。
 				{
@@ -150,7 +152,7 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 					data_info_p->data[0] = cmd_list.cmd_failed;
 					
 					/* 串口回复 */
-					ack_uart_protocol(data_info_p, 2, UART_PROTOCOL_PORT);
+					ack_uart_protocol(data_info_p, 3, UART_PROTOCOL_PORT);
 				}
 			}
 			else //接收数据校验失败，未写入flash，重发此包。
@@ -159,13 +161,13 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 				data_info_p->data[0] = cmd_list.cmd_failed;
 				
 				/* 串口回复 */
-				ack_uart_protocol(data_info_p, 2, UART_PROTOCOL_PORT);
+				ack_uart_protocol(data_info_p, 3, UART_PROTOCOL_PORT);
 			}
 		}
 	}
 	
 	/* 设置波特率 */
-	if (data_info_p->cmd == cmd_list.set_baund)
+	if (uart_cmd == cmd_list.set_baundrate)
 	{
 		__set_PRIMASK(1);
 		baund_rate = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16) 
@@ -176,13 +178,13 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 		data_info_p->data[0] = cmd_list.cmd_success;
 		
 		/* 串口回复 */
-		ack_uart_protocol(data_info_p, 2, UART_PROTOCOL_PORT);
+		ack_uart_protocol(data_info_p, 3, UART_PROTOCOL_PORT);
 		
 		USART1_Init(baund_rate);  //在未改变波特率前将应答发出，修改正确波特率后通信。
 	}
 	
 	/* 查询版本号和固件类型 */
-	if (data_info_p->cmd == cmd_list.check_version)
+	if (uart_cmd == cmd_list.check_version)
 	{
 		data_info_p->cmd |= ACK_CMD;
 		data_info_p->data[0] = (uint8_t)(FW_VER >> 24); //主版本号
@@ -195,10 +197,10 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 		data_info_p->data[7] = (uint8_t)(FW_TYPE >> 0);
 		
 		/* 串口回复 */
-		ack_uart_protocol(data_info_p, 9, UART_PROTOCOL_PORT);
+		ack_uart_protocol(data_info_p, 10, UART_PROTOCOL_PORT);
 	}
 	
-	if (data_info_p->cmd == cmd_list.excute)
+	if (uart_cmd == cmd_list.excute)
 	{
 		exe_type = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16)
 							|(data_info_p->data[2] << 8) | (data_info_p->data[3] << 0);
@@ -214,27 +216,18 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 	
 static void handle_can_protocol(uint8_t *data, uint8_t len)
 {
-	/* can协议内容不含有cmd，直接为can数据帧格式 */
-	CanTxMsg *TxMessage;
-	TxMessage = (CanTxMsg *)data;
-	
-	/* 串口接收数据直接can透传转发 */
-	CAN_WriteData(TxMessage);
 }
 	
 static void handle_zigbee_protocol(uint8_t *data, uint8_t len)
 {
-
 }
 	
 static void handle_rs485_protocol(uint8_t *data, uint8_t len)
 {
-
 }
 	
 static void handle_i2c_protocol(uint8_t *data, uint8_t len)
 {
-
 }
 
 static const protocol_entry_t package_items[] = 
@@ -328,13 +321,3 @@ void handle_usart_queue(void)
 	}
 }
 
-/* 处理072回复的can队列数据，通过uart发回cpu */
-void handle_can_queue(void)
-{
-	can_frame_t mcu_recv_mcu_can_data;
-	if (CAN_OK == CanQueueRead(&can_queue_send, &mcu_recv_mcu_can_data))
-	{
-		/* 数据帧整合到protocol字符格式中,串口回复 */
-		ack_uart_protocol((data_info_t *)&mcu_recv_mcu_can_data, sizeof(mcu_recv_mcu_can_data), CAN_PROTOCOL_PORT);
-	}
-}

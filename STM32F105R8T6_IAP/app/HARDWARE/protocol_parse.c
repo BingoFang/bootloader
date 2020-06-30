@@ -9,19 +9,19 @@
 #define UART_BL_BOOT     0x55555555
 #define UART_BL_APP      0xAAAAAAAA
 #define FW_TYPE          UART_BL_APP
-#define FW_VER					 0x00010001		//v1.1
+#define FW_VER					 0x00010000		//v1.0
 
 cmd_list_t cmd_list = 
 {
 	.write_info 		= 0x01,
 	.write_bin 			= 0x02,
 	.check_version 	= 0x03,
-	.set_baund 			= 0x04,
+	.set_baundrate 	= 0x04,
 	.excute 				= 0x05,
+	.request        = 0x06,
 	.cmd_success 		= 0x08,
 	.cmd_failed 		= 0x09,
 };
-
 static void ack_uart_protocol(data_info_t *data,uint8_t len, uint8_t port)
 {
 	uint8_t uart_tx_buf[125] = {0};
@@ -44,14 +44,17 @@ static void ack_uart_protocol(data_info_t *data,uint8_t len, uint8_t port)
 
 static void handle_uart_protocol(uint8_t *data, uint8_t len)
 {
+	uint8_t uart_reserve,uart_cmd;
 	uint32_t exe_type;
 	uint32_t baund_rate;
 
 	/* 擦除固件所需flash大小空间,每页写入。 */
 	data_info_t *data_info_p = (data_info_t *)data;
+	uart_cmd = data_info_p->cmd;
+	uart_reserve = data_info_p->option.reserve;
 	
 	/* 设置波特率 */
-	if (data_info_p->cmd == cmd_list.set_baund)
+	if (uart_cmd == cmd_list.set_baundrate)
 	{
 		__set_PRIMASK(1);
 		baund_rate = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16) 
@@ -62,12 +65,12 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 		data_info_p->data[0] = cmd_list.cmd_success;
 		
 		/* 串口回复 */
-		ack_uart_protocol(data_info_p, 2, UART_PROTOCOL_PORT);
+		ack_uart_protocol(data_info_p, 3, UART_PROTOCOL_PORT);
 		
 		USART1_Init(baund_rate);  //在未改变波特率前将应答发出，修改正确波特率后通信。
 	}
 	
-	if (data_info_p->cmd == cmd_list.check_version)
+	if (uart_cmd == cmd_list.check_version)
 	{
 		data_info_p->cmd |= ACK_CMD;
 		data_info_p->data[0] = (uint8_t)(FW_VER >> 24); //主版本号
@@ -80,10 +83,10 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 		data_info_p->data[7] = (uint8_t)(FW_TYPE >> 0);
 		
 		/* 串口回复 */
-		ack_uart_protocol(data_info_p, 9, UART_PROTOCOL_PORT);
+		ack_uart_protocol(data_info_p, 10, UART_PROTOCOL_PORT);
 	}
 	
-	if (data_info_p->cmd == cmd_list.excute)
+	if (uart_cmd == cmd_list.excute)
 	{
 		exe_type = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16)
 							|(data_info_p->data[2] << 8) | (data_info_p->data[3] << 0);
@@ -100,27 +103,142 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 	
 static void handle_can_protocol(uint8_t *data, uint8_t len)
 {
-	/* can协议内容不含有cmd，直接为can数据帧格式 */
-	CanTxMsg *TxMessage;
-	TxMessage = (CanTxMsg *)data;
+	CanTxMsg TxMessage;
+	uint8_t i;
+	uint8_t can_addr,can_cmd;
+	uint32_t exe_type;
+	uint32_t baund_rate;
+	uint32_t addr_offset;
+	static uint32_t data_size = 0,data_index = 0;
+	__align(4) static uint8_t	data_temp[PAGE_SIZE + 2];
 	
-	/* 串口接收数据直接can透传转发 */
-	CAN_WriteData(TxMessage);
+	/* 擦除固件所需flash大小空间,每页写入。 */
+	data_info_t *data_info_p = (data_info_t *)data;
+	can_cmd = data_info_p->cmd;
+	can_addr = data_info_p->option.addr;
+	
+	TxMessage.DLC = 0;
+	TxMessage.ExtId = 0;
+	TxMessage.IDE = CAN_Id_Extended;
+	TxMessage.RTR = CAN_RTR_Data;
+	
+	/* 数据偏移量存储在data[0]到data[3],数据大小存储在data[4]到data[7] */
+	if (can_cmd == cmd_list.write_info)
+	{
+		addr_offset = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16) 
+							| (data_info_p->data[2] << 8) | (data_info_p->data[3] << 0);
+		data_size = (data_info_p->data[4] << 24) | (data_info_p->data[5] << 16) 
+							| (data_info_p->data[6] << 8) | (data_info_p->data[7] << 0);		
+		data_index = 0;
+		
+		/* CAN数据帧转发 */
+		TxMessage.ExtId = (can_addr << CMD_WIDTH) | can_cmd;
+		TxMessage.Data[0] = (uint8_t)(addr_offset >> 24);
+		TxMessage.Data[1] = (uint8_t)(addr_offset >> 16);
+		TxMessage.Data[2] = (uint8_t)(addr_offset >> 8);
+		TxMessage.Data[3] = (uint8_t)(addr_offset >> 0);
+		TxMessage.Data[4] = (uint8_t)(data_size >> 24);
+		TxMessage.Data[5] = (uint8_t)(data_size >> 16);
+		TxMessage.Data[6] = (uint8_t)(data_size >> 8);
+		TxMessage.Data[7] = (uint8_t)(data_size >> 0);
+		
+		TxMessage.DLC = 8;
+		CAN_WriteData(&TxMessage);
+	}
+	
+	
+	/* 接收好数据后，CAN连续发送数据，不进行数据校验 */
+	if (can_cmd == cmd_list.write_bin)
+	{
+		if ((data_index < data_size) && (data_index < (PAGE_SIZE + 2)))
+		{
+			for (i = 0; i < (len - 2); i++)  //减去cmd，addr
+			{
+				data_temp[data_index++] = data_info_p->data[i];
+			}
+		}
+		
+		if ((data_index >= data_size) || (data_index >= (PAGE_SIZE + 2)))
+		{
+				uint16_t len_sub_integer = data_index / 8;
+				uint16_t len_sub_remain = data_index % 8;
+				uint16_t len_sub_total = len_sub_integer + (len_sub_remain > 0 ? 1 : 0);
+				uint16_t package_num;
+			
+				TxMessage.ExtId = (can_addr << CMD_WIDTH) | can_cmd;
+					
+				for (package_num = 0; package_num < len_sub_total; package_num++)
+				{
+					memset(TxMessage.Data, 0, 8);
+					if (package_num < len_sub_integer)
+					{
+						memcpy(TxMessage.Data, &data_temp[package_num * 8], 8);
+						TxMessage.DLC = 8;
+						CAN_WriteData(&TxMessage);
+					}
+					else
+					{
+						memcpy(TxMessage.Data, &data_temp[package_num * 8], len_sub_remain);
+						TxMessage.DLC = len_sub_remain;
+						CAN_WriteData(&TxMessage);
+					}
+				}
+		}	
+	}
+	
+	/* 设置波特率 */
+	if (data_info_p->cmd == cmd_list.set_baundrate)
+	{
+		baund_rate = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16) 
+							| (data_info_p->data[2] << 8) | (data_info_p->data[3] << 0);
+		
+		/* CAN数据帧透传 */
+		TxMessage.ExtId = (can_addr << CMD_WIDTH) | can_cmd;
+		TxMessage.Data[0] = (uint8_t)(baund_rate >> 24);
+		TxMessage.Data[1] = (uint8_t)(baund_rate >> 16);
+		TxMessage.Data[2] = (uint8_t)(baund_rate >> 8);
+		TxMessage.Data[3] = (uint8_t)(baund_rate >> 0);
+		
+		TxMessage.DLC = 4;
+		CAN_WriteData(&TxMessage);
+	}
+	
+	/* 查询版本号和固件类型 */
+	if (data_info_p->cmd == cmd_list.check_version)
+	{
+		/* CAN数据帧转发 */
+		TxMessage.ExtId = (can_addr << CMD_WIDTH) | can_cmd;
+		TxMessage.DLC = 0;
+		CAN_WriteData(&TxMessage);
+	}
+	
+	if (data_info_p->cmd == cmd_list.excute)
+	{
+		exe_type = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16)
+							|(data_info_p->data[2] << 8) | (data_info_p->data[3] << 0);
+		
+		/* CAN数据帧透传 */
+		TxMessage.ExtId = (can_addr << CMD_WIDTH) | can_cmd;
+		TxMessage.Data[0] = (uint8_t)(exe_type >> 24);
+		TxMessage.Data[1] = (uint8_t)(exe_type >> 16);
+		TxMessage.Data[2] = (uint8_t)(exe_type >> 8);
+		TxMessage.Data[3] = (uint8_t)(exe_type >> 0);
+		
+		TxMessage.DLC = 4;
+		CAN_WriteData(&TxMessage);
+	}
 }
 	
 static void handle_zigbee_protocol(uint8_t *data, uint8_t len)
 {
-
 }
 	
 static void handle_rs485_protocol(uint8_t *data, uint8_t len)
 {
-
 }
 	
 static void handle_i2c_protocol(uint8_t *data, uint8_t len)
 {
-
 }
 
 static const protocol_entry_t package_items[] = 

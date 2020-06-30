@@ -228,20 +228,6 @@ void CAN_Configuration(uint32_t BaudRate)
 //  return (TestStatus)ret;		
 //}
 
-uint8_t CAN_SendMsg(uint8_t *msg, uint8_t len)
-{
-	uint8_t i,ret;
-	CanTxMsg TxMessage;
-	TxMessage.ExtId = (Read_CAN_Address() << CMD_WIDTH);
-	TxMessage.IDE = CAN_ID_EXT;
-	TxMessage.RTR = CAN_RTR_DATA;
-	TxMessage.DLC = len;
-	
-	for (i = 0;i < len; i++)
-		TxMessage.Data[i] = msg[i];
-	ret = CAN_WriteData(&TxMessage);
-	return ret;
-}
 
 /**
   * @brief  发送一帧CAN数据

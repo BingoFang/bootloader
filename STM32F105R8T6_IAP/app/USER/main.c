@@ -1,3 +1,10 @@
+/*************************************************************************
+ * 文    件 : main.c
+ * 编 写 人	：bingofang
+ * 描    述	：app实现业务逻辑和跳转bootloader升级
+ * 编写时间	：2020-06-30
+ * 版    本	：v1.0
+**************************************************************************/
 #include "main.h"
 
 /*
@@ -29,7 +36,8 @@ int main(void)
 	SCB->VTOR = FLASH_BASE | APP_START_ADDR;
 	
 	/* 检查升级标志位 */
-	if(*((uint32_t *)APP_EXE_FLAG_START_ADDR) == 0xFFFFFFFF){
+	if(*((uint32_t *)APP_EXE_FLAG_START_ADDR) == 0xFFFFFFFF)
+	{
 		__align(4) static unsigned char data[4] = {0x12, 0x34, 0x56, 0x78};
 		FLASH_Unlock();
 		USART_BOOT_ProgramDatatoFlash(APP_EXE_FLAG_START_ADDR, data, 4);
@@ -46,10 +54,7 @@ int main(void)
 	UsartQueueInit(&usart1_send);									 //串口队列初始化
 	
 	LED4 = 1;
-	delay_ms(1000);
-	LED4 = 0;
-	USART1_Send_Data("stm32105-app",strlen("stm32105-app"));
-	
+
 	while(1)
 	{
 		handle_usart_queue();
