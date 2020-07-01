@@ -50,7 +50,7 @@ typedef struct
 }protocol_entry_t;
 
 void dev_active_request(void);
-void prepare_protocol(uint8_t rx_data);
+void receive_from_cpu_uart_protocol(uint8_t rx_data);
 void handle_usart_queue(void);
 void handle_can_queue(void);
 

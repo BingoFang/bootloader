@@ -15,7 +15,7 @@ typedef struct
 	uint8_t cmd_failed;
 }cmd_list_t;
 
-void dev_active_request(void);
+
 uint8_t CAN_BOOT_GetAddrData(void);
 void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage);
 void handle_can_queue(void);

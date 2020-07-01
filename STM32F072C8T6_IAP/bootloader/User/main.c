@@ -46,13 +46,11 @@ void LocalJumpApp(void)
 
 int main(void)
 {
-	uint8_t i;
 	LED_Init();
 	delay_init();
 	
-	if(*((uint32_t *)APP_EXE_FLAG_START_ADDR)==0x78563412){
-		LED2_ON();
-		delay_ms(2000);
+	if(*((uint32_t *)APP_EXE_FLAG_START_ADDR)==0x78563412)
+	{
     CAN_BOOT_JumpToApplication(APP_START_ADDR);
   }
   __set_PRIMASK(0);//开启总中断
@@ -60,14 +58,20 @@ int main(void)
 	
 	LED3_ON(); LED4_ON();
 	delay_ms(2000);
-	LED3_ON(); LED4_OFF();		
+	LED3_OFF(); LED4_OFF();		
+	
+	dev_active_request();	 //在bootloader模式下主动请求
 	
   while (1)
   {	
-		handle_can_queue();
+		if (CAN_RxMsgFlag)
+		{	
+			CAN_RxMsgFlag = 0;
+			CAN_BOOT_ExecutiveCommand(&CAN_RxMessage);
+		}
+//		handle_can_queue();
   } 
 }
-
 
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

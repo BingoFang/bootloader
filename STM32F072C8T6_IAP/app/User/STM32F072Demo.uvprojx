@@ -431,6 +431,11 @@
               <FileType>1</FileType>
               <FilePath>..\HARDWARE\can_queue.c</FilePath>
             </File>
+            <File>
+              <FileName>protocol_parse.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\HARDWARE\protocol_parse.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

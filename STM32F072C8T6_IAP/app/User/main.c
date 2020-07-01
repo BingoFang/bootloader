@@ -31,22 +31,9 @@ IAP升级区域划分,flash:64kb,sram:16kb,page size 2kb
 ==========================================
 */
 
-CBL_CMD_LIST CMD_List = 
-{
-  .Erase = 0x00,      //擦除APP区域数据
-  .WriteInfo = 0x01,  //设置多字节写数据相关参数（写起始地址，数据量）
-  .Write = 0x02,      //以多字节形式写数据
-  .Check = 0x03,      //检测节点是否在线，同时返回固件信息
-  .SetBaudRate = 0x04,//设置节点波特率
-  .Excute = 0x05,     //执行固件
-  .CmdSuccess = 0x08, //命令执行成功
-  .CmdFaild = 0x09,   //命令执行失败
-};
 
 extern CanRxMsg CAN_RxMessage;
 extern volatile uint8_t CAN_RxMsgFlag;//接收到CAN数据后的标志
-uint8_t CAN_TxMsgBuf[8] = {0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08};
-
 __IO uint32_t VectorTable[48] __attribute__((at(0x20000000)));
 
 void VectorTableOffset(void)
@@ -67,7 +54,7 @@ void VectorTableOffset(void)
 	SYSCFG->CFGR1 |= 0x03;
 }
 
-uint8_t i;
+
 int main(void)
 {
 	VectorTableOffset();  //软件搬运中断向量表
@@ -85,44 +72,18 @@ int main(void)
 	delay_init();
 	CAN_Configuration(125000);
 	
-	for (i = 0; i < 3; i++)
-	{
-		if (0 == CAN_SendMsg(CAN_TxMsgBuf,8))
-		{
-			LED3_ON();	LED4_ON();
-			delay_ms(2000);
-			LED3_OFF(); LED4_OFF();
-		}
-		else
-		{
-				LED3_ON();	LED4_ON();
-		}
-		delay_ms(1500);
-	}
+	LED1_ON(); LED2_ON();
+	delay_ms(2000);
+	LED1_OFF(); LED2_OFF();		
 	
   while (1)
   {	
-//		if(CAN_RxMsgFlag){
-//     CAN_BOOT_ExecutiveCommand(&CAN_RxMessage);
-//     CAN_RxMsgFlag = 0;
-//		}
 		if (CAN_RxMsgFlag)
-		{
+		{	
 			CAN_RxMsgFlag = 0;
-			if(0 == strncmp((char *)CAN_TxMsgBuf, (char *)CAN_RxMessage.Data, sizeof(CAN_TxMsgBuf)))
-			{
-				LED3_ON();
-				delay_ms(2000);
-				LED3_OFF();
-				
-			}
-			else
-			{
-				LED4_ON();
-				delay_ms(2000);
-				LED4_OFF();				
-			}
+			CAN_BOOT_ExecutiveCommand(&CAN_RxMessage);
 		}
+//		handle_can_queue();
   } 
 }
 

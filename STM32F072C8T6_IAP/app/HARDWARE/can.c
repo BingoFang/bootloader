@@ -42,7 +42,7 @@ tCAN_BaudRate  CAN_BaudRateInitTab[]= {      // CLK=48MHz
 };
 /* Private variables ---------------------------------------------------------*/
 /* Private function prototypes -----------------------------------------------*/
-/* Private functions ---------------------------------------------------------*/
+/* Private functions ---------------------------------------------------------*/  
 
 /**
   * @brief  通过波特率的值获取波特率参数表索引值
@@ -144,11 +144,16 @@ void CAN_ConfigFilter(uint8_t FilterNumber,uint16_t can_addr)
   CAN_FilterInitStructure.CAN_FilterScale = CAN_FilterScale_32bit;
 	
 	//以下4个为0表示接收任何数据
-  CAN_FilterInitStructure.CAN_FilterIdHigh = 0x0000;
-  CAN_FilterInitStructure.CAN_FilterIdLow = 0x0000;
-  CAN_FilterInitStructure.CAN_FilterMaskIdHigh = 0x0000;
-  CAN_FilterInitStructure.CAN_FilterMaskIdLow = 0x0000;  
-  CAN_FilterInitStructure.CAN_FilterFIFOAssignment = 0;
+//  CAN_FilterInitStructure.CAN_FilterIdHigh=can_addr>>(16-CMD_WIDTH-3);
+//  CAN_FilterInitStructure.CAN_FilterIdLow=(can_addr<<(CMD_WIDTH+3))|0x04;
+//  CAN_FilterInitStructure.CAN_FilterMaskIdHigh=ADDR_MASK>>(16-CMD_WIDTH-3);;
+//  CAN_FilterInitStructure.CAN_FilterMaskIdLow=(ADDR_MASK<<(CMD_WIDTH+3))|0x04;
+	CAN_FilterInitStructure.CAN_FilterIdHigh=0x00;
+  CAN_FilterInitStructure.CAN_FilterIdLow=0x00;
+  CAN_FilterInitStructure.CAN_FilterMaskIdHigh=0x00;;
+  CAN_FilterInitStructure.CAN_FilterMaskIdLow=0x00;
+  CAN_FilterInitStructure.CAN_FilterFIFOAssignment = CAN_Filter_FIFO0;
+
 
   CAN_FilterInitStructure.CAN_FilterActivation = ENABLE;
   CAN_FilterInit(&CAN_FilterInitStructure);
@@ -170,19 +175,19 @@ void CAN_Configuration(uint32_t BaudRate)
   CAN_StructInit(&CAN_InitStructure);
 
   /* CAN cell init */
-  CAN_InitStructure.CAN_TTCM = DISABLE;
-  CAN_InitStructure.CAN_ABOM = DISABLE;
-  CAN_InitStructure.CAN_AWUM = DISABLE;
-  CAN_InitStructure.CAN_NART = ENABLE;
-  CAN_InitStructure.CAN_RFLM = DISABLE;
-  CAN_InitStructure.CAN_TXFP = DISABLE;
+  CAN_InitStructure.CAN_TTCM = DISABLE;	//非时间触发通信模式
+  CAN_InitStructure.CAN_ABOM = DISABLE; //软件自动离线管理	
+  CAN_InitStructure.CAN_AWUM = DISABLE; //睡眠模式通过软件唤醒(清除CAN->MCR的SLEEP位)
+  CAN_InitStructure.CAN_NART = ENABLE; //禁止报文自动传送
+  CAN_InitStructure.CAN_RFLM = DISABLE; //报文不锁定,新的覆盖旧的
+  CAN_InitStructure.CAN_TXFP = DISABLE; //优先级由报文标识符决定 
   CAN_InitStructure.CAN_Mode = CAN_Mode_Normal;//正常模式
 	CAN_InitStructure.CAN_SJW = CAN_BaudRateInitTab[CAN_GetBaudRateNum(BaudRate)].SJW;//配置波特率为1M
   CAN_InitStructure.CAN_BS1 = CAN_BaudRateInitTab[CAN_GetBaudRateNum(BaudRate)].BS1;
   CAN_InitStructure.CAN_BS2 = CAN_BaudRateInitTab[CAN_GetBaudRateNum(BaudRate)].BS2;
   CAN_InitStructure.CAN_Prescaler = CAN_BaudRateInitTab[CAN_GetBaudRateNum(BaudRate)].PreScale;
-	
   CAN_Init(CAN,&CAN_InitStructure);
+	
   //设置CAN接收过滤器
   CAN_ConfigFilter(0,0x00);//广播地址，接受广播命令
 //  CAN_ConfigFilter(1,0x1234);//本节点真实地址
@@ -191,60 +196,6 @@ void CAN_Configuration(uint32_t BaudRate)
   CAN_ITConfig(CAN,CAN_IT_FMP0, ENABLE);
 }
 
-///* 测试interrupt */
-//uint8_t ret;
-//TestStatus CAN_Interrupt(void)
-//{
-//	CanTxMsg TxMessage;
-//	uint32_t i = 0;
-//	
-//  /* transmit 1 message */
-//  TxMessage.StdId = 0;
-//  TxMessage.ExtId = 0x1234;
-//  TxMessage.IDE = CAN_ID_EXT;
-//  TxMessage.RTR = CAN_RTR_DATA;
-//  TxMessage.DLC = 2;
-//  TxMessage.Data[0] = 0xDE;
-//  TxMessage.Data[1] = 0xCA;
-//  CAN_Transmit(CAN, &TxMessage);
-
-//  /* initialize the value that will be returned */
-//  ret = 0xFF;
-//       
-//  /* Receive message with interrupt handling */
-//  i = 0;
-//  while((ret ==  0xFF) && (i < 0xFFF))
-//  {
-//    i++;
-//  }
-//  
-//  if (i ==  0xFFF)
-//  {
-//    ret = 0;  
-//  }
-
-//  /* disable interrupt handling */
-//  CAN_ITConfig(CAN, CAN_IT_FMP0, DISABLE);
-
-//  return (TestStatus)ret;		
-//}
-
-
-uint8_t CAN_SendMsg(uint8_t *msg, uint8_t len)
-{
-	uint8_t i,ret;
-	CanTxMsg TxMessage;
-	TxMessage.StdId = 0x23;
-	TxMessage.ExtId = 0x23;
-	TxMessage.IDE = CAN_ID_EXT;
-	TxMessage.RTR = CAN_RTR_DATA;
-	TxMessage.DLC = len;
-	
-	for (i = 0;i < 8; i++)
-		TxMessage.Data[i] = msg[i];
-	ret = CAN_WriteData(&TxMessage);
-	return ret;
-}
 
 /**
   * @brief  发送一帧CAN数据
@@ -276,7 +227,8 @@ void CEC_CAN_IRQHandler(void)
 	{
 		CAN_Receive(CAN, CAN_FIFO0, &CAN_RxMessage);
 		CAN_ClearITPendingBit(CAN, CAN_IT_FMP0);
-		CAN_RxMsgFlag = 1;
+		CAN_RxMsgFlag = 1;  //采用前后台轮询标记符，大量数据包来不及处理会发生丢包
+//		CanQueueWrite(&can_queue_send,(can_frame_t *)&CAN_RxMessage);
 	}
 }
 
@@ -285,9 +237,9 @@ void CEC_CAN_IRQHandler(void)
   * @param  None
   * @retval None
   */
-uint16_t Read_CAN_Address(void)
+uint8_t Read_CAN_Address(void)
 {
-  return 0x1234;//返回的地址值需要根据实际情况进行修改
+  return 0x01;//返回的地址值需要根据实际情况进行修改
 }
 
 /*********************************END OF FILE**********************************/

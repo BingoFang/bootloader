@@ -2,10 +2,11 @@
 
 #define ACK_CMD					 0xF0
 
-#define CAN_BL_BOOT     0x55555555
-#define CAN_BL_APP      0xAAAAAAAA
-#define FW_TYPE          CAN_BL_APP
+#define CAN_BL_BOOT      0x55555555
+#define CAN_BL_APP       0xAAAAAAAA
+#define FW_TYPE          CAN_BL_BOOT
 #define FW_VER					 0x00010000		//v1.0
+#define ACTIVE_REQUEST	 0xFFFFFFFF
 
 cmd_list_t cmd_list = 
 {
@@ -18,6 +19,23 @@ cmd_list_t cmd_list =
 	.cmd_success 		= 0x08,
 	.cmd_failed 		= 0x09,
 };
+
+void dev_active_request(void)
+{
+	CanTxMsg TxMessage = {0};
+	
+	TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH | cmd_list.request);
+	TxMessage.IDE = CAN_Id_Extended;
+	TxMessage.RTR = CAN_RTR_Data;
+	
+	TxMessage.Data[0] = (uint8_t)(ACTIVE_REQUEST >> 24); 
+	TxMessage.Data[1] = (uint8_t)(ACTIVE_REQUEST >> 16); 
+	TxMessage.Data[2] = (uint8_t)(ACTIVE_REQUEST >> 8);
+	TxMessage.Data[3] = (uint8_t)(ACTIVE_REQUEST >> 0); 
+	TxMessage.DLC = 4;
+	
+	CAN_WriteData(&TxMessage);
+}
 
 /**
   * @brief  执行主机下发的命令
@@ -55,12 +73,13 @@ void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage)
 	{
     BaudRate = (pRxMessage->Data[0] << 24) | (pRxMessage->Data[1] << 16)
 							|(pRxMessage->Data[2] << 8) | (pRxMessage->Data[3] << 0);
-    CAN_Configuration(BaudRate);
     if(can_addr != 0x00)
 		{
-      TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | cmd_list.cmd_success;
-      TxMessage.DLC = 0;
+      TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
+			TxMessage.Data[0] = cmd_list.cmd_success;
+      TxMessage.DLC = 1;
       CAN_WriteData(&TxMessage);
+			CAN_Configuration(BaudRate);
     }
   }
 	
@@ -85,19 +104,22 @@ void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage)
 		{
 			if (ret == FLASH_COMPLETE)
 			{
-				TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | cmd_list.cmd_success;
+				TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
+				TxMessage.Data[0] = cmd_list.cmd_success;
 			}
 			else
 			{
-				TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | cmd_list.cmd_failed;
+				TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
+				TxMessage.Data[0] = cmd_list.cmd_failed;
 			}
-      TxMessage.DLC = 0;
+      TxMessage.DLC = 1;
       CAN_WriteData(&TxMessage);
     }
 		else
 		{
-			TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | cmd_list.cmd_failed;
-			TxMessage.DLC = 0;
+			TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
+			TxMessage.Data[0] = cmd_list.cmd_failed;
+			TxMessage.DLC = 1;
       CAN_WriteData(&TxMessage);
 		}
   }
@@ -132,25 +154,29 @@ void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage)
             crc_data = crc16_xmodem((const unsigned char*)(start_addr),data_size - 2);//再次对写入Flash中的数据进行CRC校验，确保写入Flash的数据无误
             if(crc_data != ((data_temp[data_size - 2] << 8) | (data_temp[data_size - 1])))
 						{
-              TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | cmd_list.cmd_failed;
+              TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
+							TxMessage.Data[0] = cmd_list.cmd_failed;
             }
 						else
 						{
-              TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | cmd_list.cmd_success;
+              TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
+							TxMessage.Data[0] = cmd_list.cmd_success;
             }
           }
 					else
 					{
-            TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | cmd_list.cmd_failed;
+            TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
+						TxMessage.Data[0] = cmd_list.cmd_failed;
           }
-          TxMessage.DLC = 0;
+          TxMessage.DLC = 1;
           CAN_WriteData(&TxMessage);
         }
       }
 			else
 			{
-        TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | cmd_list.cmd_failed;
-        TxMessage.DLC = 0;
+        TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
+				TxMessage.Data[0] = cmd_list.cmd_failed;
+        TxMessage.DLC = 1;
         CAN_WriteData(&TxMessage);
       }
     }
@@ -162,11 +188,11 @@ void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage)
 	{
     if(can_addr != 0x00)
 		{
-      TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | cmd_list.cmd_success;
-      TxMessage.Data[0] = 0;//主版本号，两字节
-      TxMessage.Data[1] = 1;
-      TxMessage.Data[2] = 0;//次版本号，两字节
-      TxMessage.Data[3] = 0;
+      TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
+      TxMessage.Data[0] = (uint8_t)(FW_VER >> 24);//主版本号，两字节
+      TxMessage.Data[1] = (uint8_t)(FW_VER >> 16);
+      TxMessage.Data[2] = (uint8_t)(FW_VER >> 8); //次版本号，两字节
+      TxMessage.Data[3] = (uint8_t)(FW_VER >> 0);
       TxMessage.Data[4] = (uint8_t)(FW_TYPE>>24);
       TxMessage.Data[5] = (uint8_t)(FW_TYPE>>16);
       TxMessage.Data[6] = (uint8_t)(FW_TYPE>>8);
@@ -177,7 +203,7 @@ void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage)
   }
 	
   //cmd_list.excute，控制程序跳转到指定地址执行
-  //该命令在Bootloader和APP程序中都必须实现
+  //该命令在Bootloader和APP程序中都必须实现,验证跳转是否成功可再check version
   if(can_cmd == cmd_list.excute)
 	{
     exe_type = (pRxMessage->Data[0] << 24) | (pRxMessage->Data[1] << 16)
@@ -211,3 +237,5 @@ void handle_can_queue(void)
 		CAN_BOOT_ExecutiveCommand(&from_mcu_can_data);
 	}
 }
+
+

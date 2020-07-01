@@ -3,8 +3,9 @@
 
 #define HEAD  					 0xAA
 #define TAIL  					 0x55
-#define DETACH_DATA_INFO_SIZE   6
 #define ACK_CMD					 0xF0
+#define RESERVE					 0x00
+#define DETACH_DATA_INFO_SIZE   6
 
 #define UART_BL_BOOT     0x55555555
 #define UART_BL_APP      0xAAAAAAAA
@@ -22,7 +23,8 @@ cmd_list_t cmd_list =
 	.cmd_success 		= 0x08,
 	.cmd_failed 		= 0x09,
 };
-static void ack_uart_protocol(data_info_t *data,uint8_t len, uint8_t port)
+
+static void ack_to_cpu_uart_protocol(data_info_t *data,uint8_t len, uint8_t port)
 {
 	uint8_t uart_tx_buf[125] = {0};
 	uint8_t cnt = 0;
@@ -38,32 +40,33 @@ static void ack_uart_protocol(data_info_t *data,uint8_t len, uint8_t port)
 	uart_tx_buf[cnt++] = (uint8_t)(crc & 0xFF);
 	uart_tx_buf[cnt++] = TAIL;
 	
-	USART1_Send_Data(uart_tx_buf, cnt);  //不定长数据应答
+	USART1_SendData(uart_tx_buf, cnt);  //不定长数据应答
 }
 
 
-static void handle_uart_protocol(uint8_t *data, uint8_t len)
+static void handle_uart_local(uint8_t *data, uint8_t len)
 {
 	uint8_t uart_reserve,uart_cmd;
 	uint32_t exe_type;
 	uint32_t baund_rate;
 
 	/* 擦除固件所需flash大小空间,每页写入。 */
-	data_info_t *data_info_p = (data_info_t *)data;
-	uart_cmd = data_info_p->cmd;
-	uart_reserve = data_info_p->option.reserve;
+	data_info_t *data_info_uart = (data_info_t *)data;
+	uart_cmd = data_info_uart->cmd;
+	uart_reserve = data_info_uart->option.reserve;
 	
 	/* 设置波特率 */
 	if (uart_cmd == cmd_list.set_baundrate)
 	{
-		baund_rate = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16) 
-							| (data_info_p->data[2] << 8) | (data_info_p->data[3] << 0);
+		baund_rate = (data_info_uart->data[0] << 24) | (data_info_uart->data[1] << 16) 
+							| (data_info_uart->data[2] << 8) | (data_info_uart->data[3] << 0);
 		
-		data_info_p->cmd |= ACK_CMD;
-		data_info_p->data[0] = cmd_list.cmd_success;
+		data_info_uart->cmd |= ACK_CMD;
+		data_info_uart->option.reserve = RESERVE;
+		data_info_uart->data[0] = cmd_list.cmd_success;
 		
 		/* 串口回复 */
-		ack_uart_protocol(data_info_p, 3, UART_PROTOCOL_PORT);
+		ack_to_cpu_uart_protocol(data_info_uart, 3, UART_PROTOCOL_PORT);
 		
 		USART1_Init(baund_rate);  //在未改变波特率前将应答发出，修改正确波特率后通信。
 	}
@@ -71,25 +74,26 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 	/* 查询软件版本号 */
 	if (uart_cmd == cmd_list.check_version)
 	{
-		data_info_p->cmd |= ACK_CMD;
-		data_info_p->data[0] = (uint8_t)(FW_VER >> 24); //主版本号
-		data_info_p->data[1] = (uint8_t)(FW_VER >> 16);
-		data_info_p->data[2] = (uint8_t)(FW_VER >> 8);	//次版本号
-		data_info_p->data[3] = (uint8_t)(FW_VER >> 0);
-		data_info_p->data[4] = (uint8_t)(FW_TYPE >> 24);//固件类型
-		data_info_p->data[5] = (uint8_t)(FW_TYPE >> 16);
-		data_info_p->data[6] = (uint8_t)(FW_TYPE >> 8);
-		data_info_p->data[7] = (uint8_t)(FW_TYPE >> 0);
+		data_info_uart->cmd |= ACK_CMD;
+		data_info_uart->option.reserve = RESERVE;
+		data_info_uart->data[0] = (uint8_t)(FW_VER >> 24); //主版本号
+		data_info_uart->data[1] = (uint8_t)(FW_VER >> 16);
+		data_info_uart->data[2] = (uint8_t)(FW_VER >> 8);	//次版本号
+		data_info_uart->data[3] = (uint8_t)(FW_VER >> 0);
+		data_info_uart->data[4] = (uint8_t)(FW_TYPE >> 24);//固件类型
+		data_info_uart->data[5] = (uint8_t)(FW_TYPE >> 16);
+		data_info_uart->data[6] = (uint8_t)(FW_TYPE >> 8);
+		data_info_uart->data[7] = (uint8_t)(FW_TYPE >> 0);
 		
 		/* 串口回复 */
-		ack_uart_protocol(data_info_p, 10, UART_PROTOCOL_PORT);
+		ack_to_cpu_uart_protocol(data_info_uart, 10, UART_PROTOCOL_PORT);
 	}
 	
 	/* 执行程序跳转 */
 	if (uart_cmd == cmd_list.excute)
 	{
-		exe_type = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16)
-							|(data_info_p->data[2] << 8) | (data_info_p->data[3] << 0);
+		exe_type = (data_info_uart->data[0] << 24) | (data_info_uart->data[1] << 16)
+							|(data_info_uart->data[2] << 8) | (data_info_uart->data[3] << 0);
     if(exe_type == UART_BL_BOOT)
 		{
 			FLASH_Unlock();
@@ -101,7 +105,7 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 	}
 }
 	
-static void handle_can_protocol(uint8_t *data, uint8_t len)
+static void handle_can_transmit(uint8_t *data, uint8_t len)
 {
 	CanTxMsg TxMessage;
 	uint8_t i;
@@ -113,22 +117,22 @@ static void handle_can_protocol(uint8_t *data, uint8_t len)
 	__align(4) static uint8_t	data_temp[PAGE_SIZE + 2];
 	
 	/* 擦除固件所需flash大小空间,每页写入。 */
-	data_info_t *data_info_p = (data_info_t *)data;
-	can_cmd = data_info_p->cmd;
-	can_addr = data_info_p->option.addr;
+	data_info_t *data_info_can = (data_info_t *)data;
+	can_cmd = data_info_can->cmd;
+	can_addr = data_info_can->option.addr;
 	
 	TxMessage.DLC = 0;
-	TxMessage.ExtId = 0;
+	TxMessage.ExtId = 0;  ////ID的bit0~bit3位为命令码，bit4~bit11位为节点地址
 	TxMessage.IDE = CAN_Id_Extended;
 	TxMessage.RTR = CAN_RTR_Data;
 	
 	/* 数据偏移量存储在data[0]到data[3],数据大小存储在data[4]到data[7] */
 	if (can_cmd == cmd_list.write_info)
 	{
-		addr_offset = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16) 
-								| (data_info_p->data[2] << 8) | (data_info_p->data[3] << 0);
-		data_size = (data_info_p->data[4] << 24) | (data_info_p->data[5] << 16) 
-							| (data_info_p->data[6] << 8) | (data_info_p->data[7] << 0);		
+		addr_offset = (data_info_can->data[0] << 24) | (data_info_can->data[1] << 16) 
+								| (data_info_can->data[2] << 8) | (data_info_can->data[3] << 0);
+		data_size = (data_info_can->data[4] << 24) | (data_info_can->data[5] << 16) 
+							| (data_info_can->data[6] << 8) | (data_info_can->data[7] << 0);		
 		data_index = 0;
 		
 		/* CAN数据帧转发 */
@@ -152,7 +156,7 @@ static void handle_can_protocol(uint8_t *data, uint8_t len)
 		{
 			for (i = 0; i < (len - 2); i++)  //减去cmd，addr
 			{
-				data_temp[data_index++] = data_info_p->data[i];
+				data_temp[data_index++] = data_info_can->data[i];
 			}
 		}
 		
@@ -185,10 +189,10 @@ static void handle_can_protocol(uint8_t *data, uint8_t len)
 	}
 	
 	/* 设置波特率 */
-	if (data_info_p->cmd == cmd_list.set_baundrate)
+	if (data_info_can->cmd == cmd_list.set_baundrate)
 	{
-		baund_rate = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16) 
-							| (data_info_p->data[2] << 8) | (data_info_p->data[3] << 0);
+		baund_rate = (data_info_can->data[0] << 24) | (data_info_can->data[1] << 16) 
+							| (data_info_can->data[2] << 8) | (data_info_can->data[3] << 0);
 		
 		/* CAN数据帧透传 */
 		TxMessage.ExtId = (can_addr << CMD_WIDTH) | can_cmd;
@@ -201,7 +205,7 @@ static void handle_can_protocol(uint8_t *data, uint8_t len)
 	}
 	
 	/* 查询版本号和固件类型 */
-	if (data_info_p->cmd == cmd_list.check_version)
+	if (data_info_can->cmd == cmd_list.check_version)
 	{
 		/* CAN数据帧转发 */
 		TxMessage.ExtId = (can_addr << CMD_WIDTH) | can_cmd;
@@ -210,10 +214,10 @@ static void handle_can_protocol(uint8_t *data, uint8_t len)
 	}
 	
 	/* 执行程序跳转 */
-	if (data_info_p->cmd == cmd_list.excute)
+	if (data_info_can->cmd == cmd_list.excute)
 	{
-		exe_type = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16)
-							|(data_info_p->data[2] << 8) | (data_info_p->data[3] << 0);
+		exe_type = (data_info_can->data[0] << 24) | (data_info_can->data[1] << 16)
+							|(data_info_can->data[2] << 8) | (data_info_can->data[3] << 0);
 		
 		/* CAN数据帧透传 */
 		TxMessage.ExtId = (can_addr << CMD_WIDTH) | can_cmd;
@@ -226,29 +230,64 @@ static void handle_can_protocol(uint8_t *data, uint8_t len)
 	}
 }
 	
-static void handle_zigbee_protocol(uint8_t *data, uint8_t len)
+static void handle_zigbee_transmit(uint8_t *data, uint8_t len)
 {
 }
 	
-static void handle_rs485_protocol(uint8_t *data, uint8_t len)
+static void handle_rs485_transmit(uint8_t *data, uint8_t len)
 {
 }
 	
-static void handle_i2c_protocol(uint8_t *data, uint8_t len)
+static void handle_i2c_transmit(uint8_t *data, uint8_t len)
 {
 }
 
 static const protocol_entry_t package_items[] = 
 {
-	{UART_PROTOCOL_PORT, 				handle_uart_protocol},
-	{CAN_PROTOCOL_PORT, 				handle_can_protocol},
-	{ZIGBEE_PROTOCOL_PORT, 			handle_zigbee_protocol},
-	{RS485_PROTOCOL_PORT, 			handle_rs485_protocol},
-	{I2C_PROTOCOL_PORT, 				handle_i2c_protocol},
+	{UART_PROTOCOL_PORT, 				handle_uart_local},
+	{CAN_PROTOCOL_PORT, 				handle_can_transmit},
+	{ZIGBEE_PROTOCOL_PORT, 			handle_zigbee_transmit},
+	{RS485_PROTOCOL_PORT, 			handle_rs485_transmit},
+	{I2C_PROTOCOL_PORT, 				handle_i2c_transmit},
 	{0xFF,											NULL},
 };
 
-static void prase_protocol(uint8_t *data, uint8_t len)
+static void parse_from_mcu_can_protocol(CanRxMsg *pRxMessage)
+{
+  uint8_t can_cmd = (pRxMessage->ExtId) & CMD_MASK;//ID的bit0~bit3位为命令码
+  uint8_t can_addr = (pRxMessage->ExtId >> CMD_WIDTH);//ID的bit4~bit11位为节点地址
+	uint32_t addr_offset,data_size;
+	
+	data_info_t data_info_can = {0};
+	
+	if (can_cmd == cmd_list.check_version)
+	{
+		data_info_can.cmd = can_cmd | ACK_CMD;
+		data_info_can.option.addr = can_addr;
+		data_info_can.data[0] = pRxMessage->Data[0];
+		data_info_can.data[1] = pRxMessage->Data[1];
+		data_info_can.data[2] = pRxMessage->Data[2];
+		data_info_can.data[3] = pRxMessage->Data[3];
+		data_info_can.data[4] = pRxMessage->Data[4];
+		data_info_can.data[5] = pRxMessage->Data[5];
+		data_info_can.data[6] = pRxMessage->Data[6];
+		data_info_can.data[7] = pRxMessage->Data[7];
+		
+		/* 串口回复 */
+		ack_to_cpu_uart_protocol(&data_info_can, 10, CAN_PROTOCOL_PORT);
+	}
+	else /* 除cmd_list.check_version外回复一致 */
+	{
+		data_info_can.cmd = can_cmd | ACK_CMD;
+		data_info_can.option.addr = can_addr;
+		data_info_can.data[0] = pRxMessage->Data[0];
+		
+		/* 串口回复 */
+		ack_to_cpu_uart_protocol(&data_info_can, 3, CAN_PROTOCOL_PORT);
+	}
+}
+
+static void parse_from_cpu_uart_protocol(uint8_t *data, uint8_t len)
 {
 	uint16_t crc = crc16_xmodem(data, len - 3);
 	uint16_t crc16 = (uint16_t)(*(data + len - 3)) << 8 | *(data + len - 2);//高位先发
@@ -268,7 +307,7 @@ static void prase_protocol(uint8_t *data, uint8_t len)
 	}
 }
 
-void prepare_protocol(uint8_t rx_data)
+void receive_from_cpu_uart_protocol(uint8_t rx_data)
 {
 	static uint8_t rx_buf[256] = {0};
 	static uint8_t data_len = 0,data_cnt = 0;
@@ -311,7 +350,7 @@ void prepare_protocol(uint8_t rx_data)
 	{
 		state = 0;
 		rx_buf[3 + data_cnt++] = rx_data;
-		prase_protocol(rx_buf,3 + data_cnt);
+		parse_from_cpu_uart_protocol(rx_buf,3 + data_cnt);
 	}
 	else
 	{
@@ -319,22 +358,23 @@ void prepare_protocol(uint8_t rx_data)
 	}
 }
 
-/* 处理由cpu发来的串口队列数据 */
+/* 处理由cpu发来的串口数据，回应cpu */
 void handle_usart_queue(void)
 {
 	uint8_t from_cpu_uart_data;
 	if (USART_QUEUE_OK == UsartQueuePop(&usart1_send, &from_cpu_uart_data))
 	{
-		prepare_protocol(from_cpu_uart_data);
+		receive_from_cpu_uart_protocol(from_cpu_uart_data);
 	}
 }
 
-/* 处理F072回应的CAN数据帧，通过uart发回cpu */
+/* 处理F072回应的CAN数据帧，回应cpu */
 void handle_can_queue(void)
 {
 	can_frame_t from_mcu_can_data;
 	if (CAN_OK == CanQueueRead(&can_queue_send, &from_mcu_can_data))
 	{
 		/* 拆分CAN数据帧，重组为串口格式回应CPU */
+		parse_from_mcu_can_protocol(&from_mcu_can_data);
 	}
 }

@@ -144,10 +144,10 @@ void CAN_ConfigFilter(uint8_t FilterNumber,uint16_t can_addr)
   CAN_FilterInitStructure.CAN_FilterScale = CAN_FilterScale_32bit;
 	
 	//以下4个为0表示接收任何数据
-  CAN_FilterInitStructure.CAN_FilterIdHigh=can_addr>>(16-CMD_WIDTH-3);
-  CAN_FilterInitStructure.CAN_FilterIdLow=(can_addr<<(CMD_WIDTH+3))|0x04;
-  CAN_FilterInitStructure.CAN_FilterMaskIdHigh=ADDR_MASK>>(16-CMD_WIDTH-3);;
-  CAN_FilterInitStructure.CAN_FilterMaskIdLow=(ADDR_MASK<<(CMD_WIDTH+3))|0x04;
+  CAN_FilterInitStructure.CAN_FilterIdHigh=0x00;
+  CAN_FilterInitStructure.CAN_FilterIdLow=0x00;
+  CAN_FilterInitStructure.CAN_FilterMaskIdHigh=0x00;;
+  CAN_FilterInitStructure.CAN_FilterMaskIdLow=0x00;
   CAN_FilterInitStructure.CAN_FilterFIFOAssignment = CAN_Filter_FIFO0;
 
 
@@ -223,8 +223,8 @@ void CEC_CAN_IRQHandler(void)
 	{
 		CAN_Receive(CAN, CAN_FIFO0, &CAN_RxMessage);
 		CAN_ClearITPendingBit(CAN, CAN_IT_FMP0);
-//		CAN_RxMsgFlag = 1;  //采用前后台轮询标记符，大量数据包来不及处理会发生丢包
-		CanQueueWrite(&can_queue_send,(can_frame_t *)&CAN_RxMessage);
+		CAN_RxMsgFlag = 1;  //采用前后台轮询标记符，大量数据包来不及处理会发生丢包
+//		CanQueueWrite(&can_queue_send,(can_frame_t *)&CAN_RxMessage);
 	}
 }
 

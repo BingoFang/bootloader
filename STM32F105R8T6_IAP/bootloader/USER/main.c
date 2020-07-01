@@ -51,7 +51,7 @@ int main(void)
   NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);//设置中断优先级分组2
 	delay_init();	    			 											 //延时函数初始化	  
 	LED_Init();		  		 													 //初始化与LED连接的硬件接口
-	USART1_Init(256000); 													 //串口初始化为256000
+	USART1_Init(115200); 													 //串口初始化为256000
 	UsartQueueInit(&usart1_send);									 //串口队列初始化
 
 	LED3 = 1;

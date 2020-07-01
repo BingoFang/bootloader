@@ -12,7 +12,7 @@ void LED_Init(void)
     GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;	
     GPIO_Init(LED1_PORT, &GPIO_InitStructure);
 	
-		LED1_OFF(); LED2_OFF(); LED3_OFF();	LED4_OFF();
+		LED1_OFF(); LED2_OFF();	LED3_OFF();	LED4_OFF();
 }
 
 /****************************************************

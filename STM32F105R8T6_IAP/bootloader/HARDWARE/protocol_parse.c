@@ -4,6 +4,7 @@
 #define HEAD  					 0xAA
 #define TAIL  					 0x55
 #define ACK_CMD					 0xF0
+#define RESERVE					 0x00
 #define DETACH_DATA_INFO_SIZE   6
 
 #define UART_BL_BOOT     0x55555555
@@ -24,7 +25,7 @@ cmd_list_t cmd_list =
 	.cmd_failed 		= 0x09,
 };
 
-static void ack_uart_protocol(data_info_t *data,uint8_t len, uint8_t port)
+static void ack_to_cpu_uart_protocol(data_info_t *data,uint8_t len, uint8_t port)
 {
 	uint8_t uart_tx_buf[125] = {0};
 	uint8_t cnt = 0;
@@ -51,10 +52,12 @@ void dev_active_request(void)
 	data_info_request.data[1] = (uint8_t)(ACTIVE_REQUEST >> 16);
 	data_info_request.data[2] = (uint8_t)(ACTIVE_REQUEST >> 8);	 
 	data_info_request.data[3] = (uint8_t)(ACTIVE_REQUEST >> 0); 
-	ack_uart_protocol(&data_info_request, 6, UART_PROTOCOL_PORT);
+	ack_to_cpu_uart_protocol(&data_info_request, 6, UART_PROTOCOL_PORT);
 }
 
-static void handle_uart_protocol(uint8_t *data, uint8_t len)
+#define TEST			/* 测试定义 */
+
+static void handle_uart_local(uint8_t *data, uint8_t len)
 {
 	uint8_t ret,i;
 	uint8_t uart_reserve,uart_cmd;
@@ -67,52 +70,61 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 	__align(4) static uint8_t	data_temp[PAGE_SIZE + 2];
 	
 	/* 擦除固件所需flash大小空间,每页写入。 */
-	data_info_t *data_info_p = (data_info_t *)data;
-	uart_cmd = data_info_p->cmd;
-	uart_reserve = data_info_p->option.reserve;
+	data_info_t *data_info_uart = (data_info_t *)data;
+	uart_cmd = data_info_uart->cmd;
+	uart_reserve = data_info_uart->option.reserve;
 	
 	/* addr_offset:按page首地址偏移
 		 start_addr:整page首地址
 		 data_size: 整page大小写入，不足1 page的写入剩余data_size */
 	if (uart_cmd == cmd_list.write_info)
 	{
-		addr_offset = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16) 
-							| (data_info_p->data[2] << 8) | (data_info_p->data[3] << 0);
+		addr_offset = (data_info_uart->data[0] << 24) | (data_info_uart->data[1] << 16) 
+							| (data_info_uart->data[2] << 8) | (data_info_uart->data[3] << 0);
 		start_addr = APP_START_ADDR + addr_offset;
 	
-		data_size = (data_info_p->data[4] << 24) | (data_info_p->data[5] << 16) 
-							| (data_info_p->data[6] << 8) | (data_info_p->data[7] << 0);
+		data_size = (data_info_uart->data[4] << 24) | (data_info_uart->data[5] << 16) 
+							| (data_info_uart->data[6] << 8) | (data_info_uart->data[7] << 0);
 		data_index = 0;
 		
-		__set_PRIMASK(1);
-		FLASH_Unlock();
-		ret = USART_BOOT_ErasePage(start_addr, start_addr);
-    FLASH_Lock();
-		__set_PRIMASK(0);
+		#ifndef TEST
+			__set_PRIMASK(1);
+			FLASH_Unlock();
+			ret = USART_BOOT_ErasePage(start_addr, start_addr);
+			FLASH_Lock();
+			__set_PRIMASK(0);
+		#else
+			__set_PRIMASK(1);
+			FLASH_Unlock();
+			ret = USART_BOOT_ErasePage(start_addr, APP_END_ADDR);
+			FLASH_Lock();
+			__set_PRIMASK(0);
+		#endif
+		
+		data_info_uart->cmd |= ACK_CMD;
+		data_info_uart->option.reserve = RESERVE;
 		
 		if (ret == FLASH_COMPLETE)
-		{
-			data_info_p->cmd |= ACK_CMD;
-			data_info_p->data[0] = cmd_list.cmd_success;
-		}
+			data_info_uart->data[0] = cmd_list.cmd_success;
 		else
-		{
-			data_info_p->cmd |= ACK_CMD;
-			data_info_p->data[0] = cmd_list.cmd_failed;
-		}
+			data_info_uart->data[0] = cmd_list.cmd_failed;
 		
 		/* 串口回复 */
-		ack_uart_protocol(data_info_p, 3, UART_PROTOCOL_PORT);
+		ack_to_cpu_uart_protocol(data_info_uart, 3, UART_PROTOCOL_PORT);
 	}
 	
 	/* 持续接收完整包完毕后，验证正确后写入 */
 	if (uart_cmd == cmd_list.write_bin)
 	{
+		data_info_uart->cmd |= ACK_CMD;
+		data_info_uart->option.reserve = RESERVE;
+		
+		#ifndef TEST
 		if ((data_index < data_size) && (data_index < (PAGE_SIZE + 2)))
 		{
 			for (i = 0; i < (len - 2); i++)  //减去cmd，reserve
 			{
-				data_temp[data_index++] = data_info_p->data[i];
+				data_temp[data_index++] = data_info_uart->data[i];
 			}
 		}
 		
@@ -132,50 +144,66 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 					/* 对写入的数据再次做CRC校验，保证数据完整性. */
 					crc_data = crc16_xmodem((const unsigned char *)(start_addr),data_size - 2);
 					if (crc_data == ((data_temp[data_size - 2] << 8) | (data_temp[data_size - 1])))
-					{
-						data_info_p->cmd |= ACK_CMD;
-						data_info_p->data[0] = cmd_list.cmd_success;
-					}
-					else	//写入flash后重校验失败，重发此包。
-					{
-						data_info_p->cmd |= ACK_CMD; 
-						data_info_p->data[0] = cmd_list.cmd_failed;					
-					}
+						data_info_uart->data[0] = cmd_list.cmd_success;
+					else	
+						data_info_uart->data[0] = cmd_list.cmd_failed;					
 					
 					/* 串口回复 */
-					ack_uart_protocol(data_info_p, 3, UART_PROTOCOL_PORT);					
+					ack_to_cpu_uart_protocol(data_info_uart, 3, UART_PROTOCOL_PORT);					
 				}	
 				else //未写入flash，重发此包。
 				{
-					data_info_p->cmd |= ACK_CMD;
-					data_info_p->data[0] = cmd_list.cmd_failed;
+					data_info_uart->data[0] = cmd_list.cmd_failed;
 					
 					/* 串口回复 */
-					ack_uart_protocol(data_info_p, 3, UART_PROTOCOL_PORT);
+					ack_to_cpu_uart_protocol(data_info_uart, 3, UART_PROTOCOL_PORT);
 				}
 			}
 			else //接收数据校验失败，未写入flash，重发此包。
 			{
-				data_info_p->cmd |= ACK_CMD;
-				data_info_p->data[0] = cmd_list.cmd_failed;
+				data_info_uart->data[0] = cmd_list.cmd_failed;
 				
 				/* 串口回复 */
-				ack_uart_protocol(data_info_p, 3, UART_PROTOCOL_PORT);
+				ack_to_cpu_uart_protocol(data_info_uart, 3, UART_PROTOCOL_PORT);
 			}
 		}
+		#else	/* 不需要对2KB加校验，直接接收满2KB后写入flash中回复写入状态 */
+			if ((data_index < data_size) && (data_index < (PAGE_SIZE)))
+			{
+				for (i = 0; i < (len - 2); i++)  //减去cmd，reserve
+				{
+					data_temp[data_index++] = data_info_uart->data[i];
+				}
+			}
+		
+			if (data_index >= PAGE_SIZE)
+			{
+				__set_PRIMASK(1);
+				FLASH_Unlock();
+				ret = USART_BOOT_ProgramDatatoFlash(start_addr, data_temp, data_size);
+				FLASH_Lock();
+				__set_PRIMASK(0);
+				
+				/* 写入一包后清零计数值，下一包地址自动累加，不做串口回复状态 */
+				memset(data_temp, 0, PAGE_SIZE + 2);
+				data_index = 0;
+				start_addr += PAGE_SIZE;
+			}
+		#endif
 	}
 	
 	/* 设置波特率 */
 	if (uart_cmd == cmd_list.set_baundrate)
 	{
-		baund_rate = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16) 
-							| (data_info_p->data[2] << 8) | (data_info_p->data[3] << 0);
+		baund_rate = (data_info_uart->data[0] << 24) | (data_info_uart->data[1] << 16) 
+							| (data_info_uart->data[2] << 8) | (data_info_uart->data[3] << 0);
 		
-		data_info_p->cmd |= ACK_CMD;
-		data_info_p->data[0] = cmd_list.cmd_success;
+		data_info_uart->cmd |= ACK_CMD;
+		data_info_uart->option.reserve = RESERVE;
+		data_info_uart->data[0] = cmd_list.cmd_success;
 		
 		/* 串口回复 */
-		ack_uart_protocol(data_info_p, 3, UART_PROTOCOL_PORT);
+		ack_to_cpu_uart_protocol(data_info_uart, 3, UART_PROTOCOL_PORT);
 		
 		USART1_Init(baund_rate);  //在未改变波特率前将应答发出，修改正确波特率后通信。
 	}
@@ -183,24 +211,25 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 	/* 查询版本号和固件类型 */
 	if (uart_cmd == cmd_list.check_version)
 	{
-		data_info_p->cmd |= ACK_CMD;
-		data_info_p->data[0] = (uint8_t)(FW_VER >> 24); //主版本号
-		data_info_p->data[1] = (uint8_t)(FW_VER >> 16);
-		data_info_p->data[2] = (uint8_t)(FW_VER >> 8);	//次版本号
-		data_info_p->data[3] = (uint8_t)(FW_VER >> 0);
-		data_info_p->data[4] = (uint8_t)(FW_TYPE >> 24);//固件类型
-		data_info_p->data[5] = (uint8_t)(FW_TYPE >> 16);
-		data_info_p->data[6] = (uint8_t)(FW_TYPE >> 8);
-		data_info_p->data[7] = (uint8_t)(FW_TYPE >> 0);
+		data_info_uart->cmd |= ACK_CMD;
+		data_info_uart->option.reserve = RESERVE;
+		data_info_uart->data[0] = (uint8_t)(FW_VER >> 24); //主版本号
+		data_info_uart->data[1] = (uint8_t)(FW_VER >> 16);
+		data_info_uart->data[2] = (uint8_t)(FW_VER >> 8);	//次版本号
+		data_info_uart->data[3] = (uint8_t)(FW_VER >> 0);
+		data_info_uart->data[4] = (uint8_t)(FW_TYPE >> 24);//固件类型
+		data_info_uart->data[5] = (uint8_t)(FW_TYPE >> 16);
+		data_info_uart->data[6] = (uint8_t)(FW_TYPE >> 8);
+		data_info_uart->data[7] = (uint8_t)(FW_TYPE >> 0);
 		
 		/* 串口回复 */
-		ack_uart_protocol(data_info_p, 10, UART_PROTOCOL_PORT);
+		ack_to_cpu_uart_protocol(data_info_uart, 10, UART_PROTOCOL_PORT);
 	}
 	
 	if (uart_cmd == cmd_list.excute)
 	{
-		exe_type = (data_info_p->data[0] << 24) | (data_info_p->data[1] << 16)
-							|(data_info_p->data[2] << 8) | (data_info_p->data[3] << 0);
+		exe_type = (data_info_uart->data[0] << 24) | (data_info_uart->data[1] << 16)
+							|(data_info_uart->data[2] << 8) | (data_info_uart->data[3] << 0);
     if(exe_type == UART_BL_APP)
 		{
       if((*((uint32_t *)APP_START_ADDR) != 0xFFFFFFFF))
@@ -211,33 +240,33 @@ static void handle_uart_protocol(uint8_t *data, uint8_t len)
 	}
 }
 	
-static void handle_can_protocol(uint8_t *data, uint8_t len)
+static void handle_can_transmit(uint8_t *data, uint8_t len)
 {
 }
 	
-static void handle_zigbee_protocol(uint8_t *data, uint8_t len)
+static void handle_zigbee_transmit(uint8_t *data, uint8_t len)
 {
 }
 	
-static void handle_rs485_protocol(uint8_t *data, uint8_t len)
+static void handle_rs485_transmit(uint8_t *data, uint8_t len)
 {
 }
 	
-static void handle_i2c_protocol(uint8_t *data, uint8_t len)
+static void handle_i2c_transmit(uint8_t *data, uint8_t len)
 {
 }
 
 static const protocol_entry_t package_items[] = 
 {
-	{UART_PROTOCOL_PORT, 				handle_uart_protocol},
-	{CAN_PROTOCOL_PORT, 				handle_can_protocol},
-	{ZIGBEE_PROTOCOL_PORT, 			handle_zigbee_protocol},
-	{RS485_PROTOCOL_PORT, 			handle_rs485_protocol},
-	{I2C_PROTOCOL_PORT, 				handle_i2c_protocol},
+	{UART_PROTOCOL_PORT, 				handle_uart_local},
+	{CAN_PROTOCOL_PORT, 				handle_can_transmit},
+	{ZIGBEE_PROTOCOL_PORT, 			handle_zigbee_transmit},
+	{RS485_PROTOCOL_PORT, 			handle_rs485_transmit},
+	{I2C_PROTOCOL_PORT, 				handle_i2c_transmit},
 	{0xFF,											NULL},
 };
 
-static void prase_protocol(uint8_t *data, uint8_t len)
+static void parse_from_cpu_uart_protocol(uint8_t *data, uint8_t len)
 {
 	uint16_t crc = crc16_xmodem(data, len - 3);
 	uint16_t crc16 = (uint16_t)(*(data + len - 3)) << 8 | *(data + len - 2);//高位先发
@@ -257,7 +286,7 @@ static void prase_protocol(uint8_t *data, uint8_t len)
 	}
 }
 
-void prepare_protocol(uint8_t rx_data)
+void receive_from_cpu_uart_protocol(uint8_t rx_data)
 {
 	static uint8_t rx_buf[256] = {0};
 	static uint8_t data_len = 0,data_cnt = 0;
@@ -300,7 +329,7 @@ void prepare_protocol(uint8_t rx_data)
 	{
 		state = 0;
 		rx_buf[3 + data_cnt++] = rx_data;
-		prase_protocol(rx_buf,3 + data_cnt);
+		parse_from_cpu_uart_protocol(rx_buf,3 + data_cnt);
 	}
 	else
 	{
@@ -308,13 +337,13 @@ void prepare_protocol(uint8_t rx_data)
 	}
 }
 
-/* 处理由cpu发来的串口队列数据 */
+/* 处理由cpu发来的串口数据，回应cpu */
 void handle_usart_queue(void)
 {
-	uint8_t cpu_send_mcu_uart_data;
-	if (USART_QUEUE_OK == UsartQueuePop(&usart1_send, &cpu_send_mcu_uart_data))
+	uint8_t from_cpu_uart_data;
+	if (USART_QUEUE_OK == UsartQueuePop(&usart1_send, &from_cpu_uart_data))
 	{
-		prepare_protocol(cpu_send_mcu_uart_data);
+		receive_from_cpu_uart_protocol(from_cpu_uart_data);
 	}
 }
 

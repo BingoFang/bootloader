@@ -69,12 +69,12 @@ void USART1_Init(u32 bound){
 }
 
 /***********************************************************
- * 函数名称：USART1_Send_Data
+ * 函数名称：USART1_SendData
  * 功能描述：串口1发送函数
  * 输入参数：*buf	字符串首地址	len	数据长度
  * 输出参数：无
 ***********************************************************/
-void USART1_Send_Data(u8 *buf, u8 len)
+void USART1_SendData(u8 *buf, u8 len)
 {
 	USART_ClearFlag(USART1, USART_FLAG_TC); //防止第一个字符丢失
   for(u8 i=0; i<len; i++)	//循环发送数据

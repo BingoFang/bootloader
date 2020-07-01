@@ -17,7 +17,7 @@
 //1,增加了对UCOSII的支持
 
 void USART1_Init(u32 bound);
-void USART1_Send_Data(u8 *buf, u8 len);
+void USART1_SendData(u8 *buf, u8 len);
 
 #endif
 
