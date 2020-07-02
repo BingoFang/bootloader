@@ -1,4 +1,5 @@
 #include "main.h"
+#include <string.h>
 
 #define ACK_CMD					 0xF0
 
@@ -42,6 +43,7 @@ void dev_active_request(void)
   * @param  pRxMessage CAN总线消息
   * @retval 无
   */
+#define TEST
 void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage)
 {
   CanTxMsg TxMessage;
@@ -87,37 +89,42 @@ void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage)
   //数据偏移地址存储在Data[0]到Data[3]中，数据大小存储在Data[4]到Data[7]中，并擦除对应大小page
   if(can_cmd == cmd_list.write_info)
 	{
+		TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
+		
     addr_offset = (pRxMessage->Data[0] << 24) | (pRxMessage->Data[1] << 16) 
 								 |(pRxMessage->Data[2] << 8) | (pRxMessage->Data[3] << 0);
     start_addr = APP_START_ADDR + addr_offset;
+		
     data_size = (pRxMessage->Data[4] << 24) | (pRxMessage->Data[5] << 16) 
 							 |(pRxMessage->Data[6] << 8) | (pRxMessage->Data[7] << 0);
     data_index = 0;
  
-		__set_PRIMASK(1);
-		FLASH_Unlock();
-		ret = CAN_BOOT_ErasePage(start_addr, start_addr);
-    FLASH_Lock();
-		__set_PRIMASK(0);
+		#ifndef TEST
+			__set_PRIMASK(1);
+			FLASH_Unlock();
+			ret = CAN_BOOT_ErasePage(start_addr, start_addr);
+			FLASH_Lock();
+			__set_PRIMASK(0);
+		#else
+			__set_PRIMASK(1);
+			FLASH_Unlock();
+			ret = CAN_BOOT_ErasePage(start_addr, APP_END_ADDR);
+			FLASH_Lock();
+			__set_PRIMASK(0);
+		#endif
 		
     if(can_addr != 0x00)
 		{
 			if (ret == FLASH_COMPLETE)
-			{
-				TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
 				TxMessage.Data[0] = cmd_list.cmd_success;
-			}
 			else
-			{
-				TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
 				TxMessage.Data[0] = cmd_list.cmd_failed;
-			}
+			
       TxMessage.DLC = 1;
       CAN_WriteData(&TxMessage);
     }
 		else
 		{
-			TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
 			TxMessage.Data[0] = cmd_list.cmd_failed;
 			TxMessage.DLC = 1;
       CAN_WriteData(&TxMessage);
@@ -130,6 +137,9 @@ void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage)
   //该函数在Bootloader程序中必须实现，APP程序可以不用实现
   if(can_cmd == cmd_list.write_bin)
 	{
+		TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
+		
+		#ifndef TEST
     if((data_index < data_size) && (data_index < PAGE_SIZE + 2))
 		{
       for(i = 0; i < pRxMessage->DLC; i++)
@@ -153,19 +163,12 @@ void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage)
 					{
             crc_data = crc16_xmodem((const unsigned char*)(start_addr),data_size - 2);//再次对写入Flash中的数据进行CRC校验，确保写入Flash的数据无误
             if(crc_data != ((data_temp[data_size - 2] << 8) | (data_temp[data_size - 1])))
-						{
-              TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
 							TxMessage.Data[0] = cmd_list.cmd_failed;
-            }
 						else
-						{
-              TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
 							TxMessage.Data[0] = cmd_list.cmd_success;
-            }
           }
 					else
 					{
-            TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
 						TxMessage.Data[0] = cmd_list.cmd_failed;
           }
           TxMessage.DLC = 1;
@@ -174,12 +177,36 @@ void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage)
       }
 			else
 			{
-        TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
 				TxMessage.Data[0] = cmd_list.cmd_failed;
         TxMessage.DLC = 1;
         CAN_WriteData(&TxMessage);
       }
     }
+		#else
+			if ((data_index < data_size) && (data_index < PAGE_SIZE))
+			{
+				for (i = 0; i < pRxMessage->DLC; i++)
+				{
+					data_temp[data_index++] = pRxMessage->Data[i];
+				}
+				if (pRxMessage->DLC < 8)
+					goto no_enough;
+			}
+			if (data_index >= PAGE_SIZE)
+			{
+				no_enough:
+				__set_PRIMASK(1);
+				FLASH_Unlock();
+				ret = CAN_BOOT_ProgramDatatoFlash(start_addr, data_temp, data_index);
+				FLASH_Lock();
+				__set_PRIMASK(0);
+				
+				
+				memset(data_temp, 0, PAGE_SIZE + 2);
+				data_index = 0;
+				start_addr += PAGE_SIZE;
+			}
+		#endif
   }
 	
   //cmd_list.check_version，节点在线检测

@@ -47,13 +47,13 @@ void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage)
 	{ 
     BaudRate = (pRxMessage->Data[0] << 24) | (pRxMessage->Data[1] << 16)
 							|(pRxMessage->Data[2] << 8) | (pRxMessage->Data[3] << 0);
-    CAN_Configuration(BaudRate);
     if(can_addr != 0x00)
 		{
       TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
 			TxMessage.Data[0] = cmd_list.cmd_success;
       TxMessage.DLC = 1;
       CAN_WriteData(&TxMessage);
+			CAN_Configuration(BaudRate);
     }
   }
 	

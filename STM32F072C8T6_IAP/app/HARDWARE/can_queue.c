@@ -78,7 +78,7 @@ static void can_frame_clear(can_frame_t *frame)
   can_frame_t *dst = frame;
   dst->StdId = 0;
   dst->DLC = 0;
-  dst->IDE = CAN_Id_Standard;
+  dst->IDE = CAN_Id_Extended;
   dst->RTR = CAN_RTR_Data;
   memset(dst->Data, 0, 8);
 }
@@ -87,7 +87,7 @@ static void can_frame_clear(can_frame_t *frame)
 static void can_frame_copy(can_frame_t *dst, can_frame_t *src)
 {
   can_frame_t *dst_tmp = dst, *src_tmp = src;
-  dst_tmp->StdId = src_tmp->StdId;
+  dst_tmp->ExtId = src_tmp->ExtId;
   dst_tmp->DLC = src_tmp->DLC;
   dst_tmp->IDE = src_tmp->IDE;
   dst_tmp->RTR = src_tmp->RTR;

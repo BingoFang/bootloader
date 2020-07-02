@@ -12,7 +12,7 @@ typedef enum
 } usart_queue_status_t;
 
  
-#define USART_QUEUE_SIZE  1024  //读取速度来不及，调整BUF大小
+#define USART_QUEUE_SIZE  1024  //读取速度来不及，调整BUF大小,考虑SRAM大小
 
 typedef struct
 {  

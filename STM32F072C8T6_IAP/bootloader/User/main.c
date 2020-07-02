@@ -64,12 +64,12 @@ int main(void)
 	
   while (1)
   {	
-		if (CAN_RxMsgFlag)
-		{	
-			CAN_RxMsgFlag = 0;
-			CAN_BOOT_ExecutiveCommand(&CAN_RxMessage);
-		}
-//		handle_can_queue();
+//		if (CAN_RxMsgFlag)
+//		{	
+//			CAN_RxMsgFlag = 0;
+//			CAN_BOOT_ExecutiveCommand(&CAN_RxMessage);
+//		}
+		handle_can_queue();
   } 
 }
 

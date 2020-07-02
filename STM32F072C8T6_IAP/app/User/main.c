@@ -59,7 +59,8 @@ int main(void)
 {
 	VectorTableOffset();  //软件搬运中断向量表
 	
-	if(*((uint32_t *)APP_EXE_FLAG_START_ADDR) == 0xFFFFFFFF){
+	if(*((uint32_t *)APP_EXE_FLAG_START_ADDR) == 0xFFFFFFFF)
+	{
 		__align(4) static unsigned char data[4] = {0x12, 0x34, 0x56, 0x78};
 		FLASH_Unlock();
 		CAN_BOOT_ProgramDatatoFlash(APP_EXE_FLAG_START_ADDR, data, 4);
@@ -78,12 +79,12 @@ int main(void)
 	
   while (1)
   {	
-		if (CAN_RxMsgFlag)
-		{	
-			CAN_RxMsgFlag = 0;
-			CAN_BOOT_ExecutiveCommand(&CAN_RxMessage);
-		}
-//		handle_can_queue();
+//		if (CAN_RxMsgFlag)
+//		{	
+//			CAN_RxMsgFlag = 0;
+//			CAN_BOOT_ExecutiveCommand(&CAN_RxMessage);
+//		}
+		handle_can_queue();
   } 
 }
 

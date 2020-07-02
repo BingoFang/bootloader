@@ -4,7 +4,6 @@
 #define HEAD  					 0xAA
 #define TAIL  					 0x55
 #define ACK_CMD					 0xF0
-#define RESERVE					 0x00
 #define DETACH_DATA_INFO_SIZE   6
 
 #define UART_BL_BOOT     0x55555555
@@ -62,20 +61,19 @@ static void handle_uart_local(uint8_t *data, uint8_t len)
 							| (data_info_uart->data[2] << 8) | (data_info_uart->data[3] << 0);
 		
 		data_info_uart->cmd |= ACK_CMD;
-		data_info_uart->option.reserve = RESERVE;
+		data_info_uart->option.reserve = uart_reserve;
 		data_info_uart->data[0] = cmd_list.cmd_success;
 		
-		/* 串口回复 */
 		ack_to_cpu_uart_protocol(data_info_uart, 3, UART_PROTOCOL_PORT);
 		
 		USART1_Init(baund_rate);  //在未改变波特率前将应答发出，修改正确波特率后通信。
 	}
 	
-	/* 查询软件版本号 */
+	/* 查询版本号和固件类型 */
 	if (uart_cmd == cmd_list.check_version)
 	{
 		data_info_uart->cmd |= ACK_CMD;
-		data_info_uart->option.reserve = RESERVE;
+		data_info_uart->option.reserve = uart_reserve;
 		data_info_uart->data[0] = (uint8_t)(FW_VER >> 24); //主版本号
 		data_info_uart->data[1] = (uint8_t)(FW_VER >> 16);
 		data_info_uart->data[2] = (uint8_t)(FW_VER >> 8);	//次版本号
@@ -85,11 +83,10 @@ static void handle_uart_local(uint8_t *data, uint8_t len)
 		data_info_uart->data[6] = (uint8_t)(FW_TYPE >> 8);
 		data_info_uart->data[7] = (uint8_t)(FW_TYPE >> 0);
 		
-		/* 串口回复 */
 		ack_to_cpu_uart_protocol(data_info_uart, 10, UART_PROTOCOL_PORT);
 	}
 	
-	/* 执行程序跳转 */
+	/* 程序跳转 */
 	if (uart_cmd == cmd_list.excute)
 	{
 		exe_type = (data_info_uart->data[0] << 24) | (data_info_uart->data[1] << 16)
@@ -104,17 +101,19 @@ static void handle_uart_local(uint8_t *data, uint8_t len)
 		}
 	}
 }
-	
+
+#define CAN_DIV_PACKET_SIZE   128    //最小包数据为128字节
+#define TEST
+uint32_t can_baund_rate;
 static void handle_can_transmit(uint8_t *data, uint8_t len)
 {
 	CanTxMsg TxMessage;
 	uint8_t i;
 	uint8_t can_addr,can_cmd;
 	uint32_t exe_type;
-	uint32_t baund_rate;
 	uint32_t addr_offset;
 	static uint32_t data_size = 0,data_index = 0;
-	__align(4) static uint8_t	data_temp[PAGE_SIZE + 2];
+	__align(4) static uint8_t	data_temp[CAN_DIV_PACKET_SIZE];
 	
 	/* 擦除固件所需flash大小空间,每页写入。 */
 	data_info_t *data_info_can = (data_info_t *)data;
@@ -152,7 +151,12 @@ static void handle_can_transmit(uint8_t *data, uint8_t len)
 	/* 接收固件数据，缓存满2KB后拆包组成CAN数据帧逐包转发，不进行数据校验 */
 	if (can_cmd == cmd_list.write_bin)
 	{
-		if ((data_index < data_size) && (data_index < (PAGE_SIZE + 2)))
+		uint16_t len_sub_integer;
+		uint16_t len_sub_remain;
+		uint16_t len_sub_total;
+		uint16_t package_num;
+		#ifndef TEST
+		if (data_index < CAN_DIV_PACKET_SIZE)
 		{
 			for (i = 0; i < (len - 2); i++)  //减去cmd，addr
 			{
@@ -160,13 +164,14 @@ static void handle_can_transmit(uint8_t *data, uint8_t len)
 			}
 		}
 		
-		if ((data_index >= data_size) || (data_index >= (PAGE_SIZE + 2)))
+		if (data_index >= (PAGE_SIZE + 2))
 		{
-			uint16_t len_sub_integer = data_index / 8;
-			uint16_t len_sub_remain = data_index % 8;
-			uint16_t len_sub_total = len_sub_integer + (len_sub_remain > 0 ? 1 : 0);
-			uint16_t package_num;
+			len_sub_integer = data_index / 8;
+			len_sub_remain = data_index % 8;
+			len_sub_total = len_sub_integer + (len_sub_remain > 0 ? 1 : 0);
 			
+			data_index = 0;
+		
 			TxMessage.ExtId = (can_addr << CMD_WIDTH) | can_cmd;
 					
 			for (package_num = 0; package_num < len_sub_total; package_num++)
@@ -186,20 +191,68 @@ static void handle_can_transmit(uint8_t *data, uint8_t len)
 				}
 			}
 		}	
+		#else
+		  if (data_index < CAN_DIV_PACKET_SIZE)  //存储128字节后就发送
+			{
+				for (i = 0; i < (len - 2); i++)
+				{
+					data_temp[data_index++] = data_info_can->data[i];
+				}
+				if ((len - 2) < CAN_DIV_PACKET_SIZE)	//最后一包小于128字节,跳转把缓存不足数据转发
+				goto no_enough;	
+			}
+		
+				/* 分包组成CAN数据帧发送 */
+			if(data_index >= CAN_DIV_PACKET_SIZE)
+			{
+				no_enough:
+				
+				/* 串口升级连续接收满2kb后写入flash中比较快，这里接收满2kb数据要分包8b数据帧
+				发送需要256次，要在100ms内发送完，否则又会新的数据缓存在uart_queue，只能在间隔
+				的100ms中去处理can数据分发，分发的速度过慢迟早会让uart_queue覆盖未处理的数据。
+				
+				---将存储2kb更改为存储128b就开始分包发送，在100ms内压力就比较小些。
+				*/
+			  len_sub_integer = data_index / 8;
+				len_sub_remain = data_index % 8;
+				len_sub_total = len_sub_integer + (len_sub_remain > 0 ? 1 : 0);
+				
+				data_index = 0;  //发送128b后清零重新计数
+				
+				TxMessage.ExtId = (can_addr << CMD_WIDTH) | can_cmd;
+				
+				for (package_num = 0; package_num < len_sub_total; package_num++)
+				{
+					memset(TxMessage.Data, 0, 8);
+					if (package_num < len_sub_integer)
+					{
+						memcpy(TxMessage.Data, &data_temp[package_num * 8], 8);
+						TxMessage.DLC = 8;
+						CAN_WriteData(&TxMessage);
+					}
+					else
+					{
+						memcpy(TxMessage.Data, &data_temp[package_num * 8], len_sub_remain);
+						TxMessage.DLC = len_sub_remain;
+						CAN_WriteData(&TxMessage);
+					}
+				}		
+			}		
+		#endif
 	}
 	
 	/* 设置波特率 */
 	if (data_info_can->cmd == cmd_list.set_baundrate)
 	{
-		baund_rate = (data_info_can->data[0] << 24) | (data_info_can->data[1] << 16) 
+		can_baund_rate = (data_info_can->data[0] << 24) | (data_info_can->data[1] << 16) 
 							| (data_info_can->data[2] << 8) | (data_info_can->data[3] << 0);
 		
 		/* CAN数据帧透传 */
 		TxMessage.ExtId = (can_addr << CMD_WIDTH) | can_cmd;
-		TxMessage.Data[0] = (uint8_t)(baund_rate >> 24);
-		TxMessage.Data[1] = (uint8_t)(baund_rate >> 16);
-		TxMessage.Data[2] = (uint8_t)(baund_rate >> 8);
-		TxMessage.Data[3] = (uint8_t)(baund_rate >> 0);
+		TxMessage.Data[0] = (uint8_t)(can_baund_rate >> 24);
+		TxMessage.Data[1] = (uint8_t)(can_baund_rate >> 16);
+		TxMessage.Data[2] = (uint8_t)(can_baund_rate >> 8);
+		TxMessage.Data[3] = (uint8_t)(can_baund_rate >> 0);
 		TxMessage.DLC = 4;
 		CAN_WriteData(&TxMessage);
 	}
@@ -242,16 +295,6 @@ static void handle_i2c_transmit(uint8_t *data, uint8_t len)
 {
 }
 
-static const protocol_entry_t package_items[] = 
-{
-	{UART_PROTOCOL_PORT, 				handle_uart_local},
-	{CAN_PROTOCOL_PORT, 				handle_can_transmit},
-	{ZIGBEE_PROTOCOL_PORT, 			handle_zigbee_transmit},
-	{RS485_PROTOCOL_PORT, 			handle_rs485_transmit},
-	{I2C_PROTOCOL_PORT, 				handle_i2c_transmit},
-	{0xFF,											NULL},
-};
-
 static void parse_from_mcu_can_protocol(CanRxMsg *pRxMessage)
 {
   uint8_t can_cmd = (pRxMessage->ExtId) & CMD_MASK;//ID的bit0~bit3位为命令码
@@ -273,31 +316,59 @@ static void parse_from_mcu_can_protocol(CanRxMsg *pRxMessage)
 		data_info_can.data[6] = pRxMessage->Data[6];
 		data_info_can.data[7] = pRxMessage->Data[7];
 		
-		/* 串口回复 */
 		ack_to_cpu_uart_protocol(&data_info_can, 10, CAN_PROTOCOL_PORT);
 	}
-	else /* 除cmd_list.check_version外回复一致 */
+	else if (can_cmd == cmd_list.request)
 	{
 		data_info_can.cmd = can_cmd | ACK_CMD;
 		data_info_can.option.addr = can_addr;
 		data_info_can.data[0] = pRxMessage->Data[0];
+		data_info_can.data[1] = pRxMessage->Data[1];
+		data_info_can.data[2] = pRxMessage->Data[2];
+		data_info_can.data[3] = pRxMessage->Data[3];
 		
-		/* 串口回复 */
+		ack_to_cpu_uart_protocol(&data_info_can, 6, CAN_PROTOCOL_PORT);
+	}
+	else 
+	{
+		if (can_cmd == cmd_list.set_baundrate)
+		{
+			/* 更改can波特率回复成功修改本地can波特率，f072跳转程序后恢复默认can波特率，
+			本地也需要恢复can波特率才能正常通行 */
+			if (pRxMessage->Data[0] == cmd_list.cmd_success)
+			{
+				CAN_Configuration(can_baund_rate);	
+			}	
+		}
+		data_info_can.cmd = can_cmd | ACK_CMD;
+		data_info_can.option.addr = can_addr;
+		data_info_can.data[0] = pRxMessage->Data[0];
+		
 		ack_to_cpu_uart_protocol(&data_info_can, 3, CAN_PROTOCOL_PORT);
 	}
 }
 
+static const protocol_entry_t package_items[] = 
+{
+	{UART_PROTOCOL_PORT, 				handle_uart_local},
+	{CAN_PROTOCOL_PORT, 				handle_can_transmit},
+	{ZIGBEE_PROTOCOL_PORT, 			handle_zigbee_transmit},
+	{RS485_PROTOCOL_PORT, 			handle_rs485_transmit},
+	{I2C_PROTOCOL_PORT, 				handle_i2c_transmit},
+	{0xFF,											NULL},
+};
+
 static void parse_from_cpu_uart_protocol(uint8_t *data, uint8_t len)
 {
+	const protocol_entry_t *protocol_entry;
+	protocol_info_t protocol_info = {0};
 	uint16_t crc = crc16_xmodem(data, len - 3);
 	uint16_t crc16 = (uint16_t)(*(data + len - 3)) << 8 | *(data + len - 2);//高位先发
 	if (crc16 != crc) return;
 	
-	protocol_info_t protocol_info = {0};
 	protocol_info.port	= data[2];
 	memcpy(&protocol_info.data_info, data + 3, len - DETACH_DATA_INFO_SIZE);
 	
-	const protocol_entry_t *protocol_entry;
 	for (protocol_entry = package_items; protocol_entry->handle != NULL; protocol_entry++)
 	{
 		if (protocol_info.port == protocol_entry->port)
@@ -313,7 +384,7 @@ void receive_from_cpu_uart_protocol(uint8_t rx_data)
 	static uint8_t data_len = 0,data_cnt = 0;
 	static uint8_t state = 0;
 	
-	if (state == 0 && rx_data == HEAD) //head
+	if (state == 0 && rx_data == HEAD) 
 	{
 		state = 1;
 		rx_buf[0] = rx_data;
@@ -330,7 +401,7 @@ void receive_from_cpu_uart_protocol(uint8_t rx_data)
 		state = 3;
 		rx_buf[2] = rx_data;
 	}
-	else if (state == 3 && data_len > 0) //protocol data
+	else if (state == 3 && data_len > 0) //data
 	{
 		rx_buf[3 + data_cnt++] = rx_data;
 		data_len--;
@@ -346,7 +417,7 @@ void receive_from_cpu_uart_protocol(uint8_t rx_data)
 		state = 6;
 		rx_buf[3 + data_cnt++] = rx_data;
 	}
-	else if (state == 6 && rx_data == TAIL) //tail
+	else if (state == 6 && rx_data == TAIL) 
 	{
 		state = 0;
 		rx_buf[3 + data_cnt++] = rx_data;

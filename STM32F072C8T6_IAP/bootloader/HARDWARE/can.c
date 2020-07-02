@@ -223,8 +223,8 @@ void CEC_CAN_IRQHandler(void)
 	{
 		CAN_Receive(CAN, CAN_FIFO0, &CAN_RxMessage);
 		CAN_ClearITPendingBit(CAN, CAN_IT_FMP0);
-		CAN_RxMsgFlag = 1;  //采用前后台轮询标记符，大量数据包来不及处理会发生丢包
-//		CanQueueWrite(&can_queue_send,(can_frame_t *)&CAN_RxMessage);
+//		CAN_RxMsgFlag = 1;  //采用前后台轮询标记符，大量数据包来不及处理会发生丢包
+		CanQueueWrite(&can_queue_send,(can_frame_t *)&CAN_RxMessage);
 	}
 }
 
