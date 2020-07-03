@@ -59,7 +59,7 @@ void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage)
   static uint32_t data_size=0;
   static uint32_t data_index=0;
   __align(4) static uint8_t	data_temp[PAGE_SIZE + 2];
-  //判断接收的数据地址是否和本节点地址匹配，若不匹配则直接返回，不做任何事情
+  //判断接收的数据地址是否和本节点地址匹配，若不匹配则直接返回，不做任何事情，地址为0为广播
   if((can_addr != CAN_BOOT_GetAddrData()) && (can_addr != 0))
 	{
     return;

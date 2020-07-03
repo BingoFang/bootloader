@@ -31,7 +31,6 @@ IAP升级区域划分,flash:64kb,sram:16kb,page size 2kb
 ==========================================
 */
 
-
 extern CanRxMsg CAN_RxMessage;
 extern volatile uint8_t CAN_RxMsgFlag;//接收到CAN数据后的标志
 

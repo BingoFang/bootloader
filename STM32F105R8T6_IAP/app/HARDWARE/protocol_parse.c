@@ -9,7 +9,7 @@
 #define UART_BL_BOOT     0x55555555
 #define UART_BL_APP      0xAAAAAAAA
 #define FW_TYPE          UART_BL_APP
-#define FW_VER					 0x00010000		//v1.0
+#define FW_VER					 0x00010001		//v1.1
 
 cmd_list_t cmd_list = 
 {

@@ -59,6 +59,19 @@ int main(void)
 {
 	VectorTableOffset();  //软件搬运中断向量表
 	
+	LED_Init();
+	delay_init();
+	CAN_Configuration(125000);
+	
+	LED1_ON(); LED2_ON();
+	delay_ms(2000);
+	LED1_OFF(); LED2_OFF();		
+	
+	/* 1、不放在开头检测升级标志符，防止烧录具备同样APP地址和升级标志符，跳转后就把升级标志符给更新了。导致复位后
+	依然要跳转APP，这样可以使用看门狗复位后能够停留在boot程序下还能继续升级程序。
+		2、下载了不具备app再升级的程序，就无法跳回boot程序，只能依靠原app程序需要喂狗操作来表明非正确bin文件，复位
+	重回boot程序，等待升级。
+		3、如果boot程序被破坏，只能重烧录boot程序或是有出厂boot程序备份区进行恢复。	*/
 	if(*((uint32_t *)APP_EXE_FLAG_START_ADDR) == 0xFFFFFFFF)
 	{
 		__align(4) static unsigned char data[4] = {0x12, 0x34, 0x56, 0x78};
@@ -68,14 +81,6 @@ int main(void)
   }
   __set_PRIMASK(0);//开启总中断
 	
-	
-	LED_Init();
-	delay_init();
-	CAN_Configuration(125000);
-	
-	LED1_ON(); LED2_ON();
-	delay_ms(2000);
-	LED1_OFF(); LED2_OFF();		
 	
   while (1)
   {	
