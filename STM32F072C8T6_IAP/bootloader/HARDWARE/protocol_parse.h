@@ -10,15 +10,14 @@ typedef struct
 	uint8_t check_version;
 	uint8_t set_baundrate;
 	uint8_t excute;
-	uint8_t request;
 	uint8_t cmd_success;
 	uint8_t cmd_failed;
 }cmd_list_t;
 
-void dev_active_request(void);
+void JumpFirmwareSuccess(void);
 uint8_t CAN_BOOT_GetAddrData(void);
 void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage);
-void handle_can_queue(void);
+void HandleCanQueue(void);
 
 #endif
 

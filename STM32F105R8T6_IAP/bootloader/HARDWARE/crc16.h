@@ -47,32 +47,6 @@ __inline unsigned short crc16_xmodem(const unsigned char *buf, unsigned int len)
 }
 extern __inline unsigned short crc16_xmodem(const unsigned char *buf, unsigned int len);
 
-/* crc16-modbus：注意crc_h和crc_L的位置 */
-__inline unsigned short crc16_modbus(const unsigned char* snd,unsigned int len)
-{
-	register unsigned int i, j;
-	register unsigned short c,crc = 0xFFFF;
-	for(i = 0; i < len; i ++)
-	{
-		c = snd[i] & 0x00FF;
-		crc ^= c;
-		for(j = 0;j < 8; j++)
-		{
-			if (crc & 0x0001)
-			{
-				crc >>= 1;
-				crc ^= 0xA001;
-			}
-			else
-			{
-				crc >>= 1;
-			}
-		}
-	}
-	return (crc);
-}
-
-extern __inline unsigned short crc16_modbus(const unsigned char* snd,unsigned int len);
 #endif /* _CRC16_H_ */
 
 

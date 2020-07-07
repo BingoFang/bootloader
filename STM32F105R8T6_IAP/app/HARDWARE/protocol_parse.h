@@ -19,7 +19,6 @@ typedef struct
 	uint8_t check_version;
 	uint8_t set_baundrate;
 	uint8_t excute;
-	uint8_t request;
 	uint8_t cmd_success;
 	uint8_t cmd_failed;
 }cmd_list_t;
@@ -49,9 +48,10 @@ typedef struct
 }protocol_entry_t;
 
 
-void receive_from_cpu_uart_protocol(uint8_t rx_data);
-void handle_usart_queue(void);
-void handle_can_queue(void);
+void JumpFirmwareSuccess(void);
+void RecvFromCpuUartProtocol(uint8_t rx_data);
+void HandleUsartQueue(void);
+void HandleCanQueue(void);
 
 #endif
 

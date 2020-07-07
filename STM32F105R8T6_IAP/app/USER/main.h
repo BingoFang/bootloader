@@ -6,6 +6,7 @@
 #include "sys.h"
 #include "crc16.h"
 #include "usart.h"  
+#include "iwdg.h"
 #include "usart_queue.h"
 #include "can.h"
 #include "can_queue.h"

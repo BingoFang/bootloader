@@ -10,7 +10,6 @@
 #define UART_BL_APP      0xAAAAAAAA
 #define FW_TYPE          UART_BL_BOOT
 #define FW_VER					 0x00010000		//v1.0
-#define ACTIVE_REQUEST   0xFFFFFFFF
 
 cmd_list_t cmd_list = 
 {
@@ -19,12 +18,12 @@ cmd_list_t cmd_list =
 	.check_version 	= 0x03,
 	.set_baundrate 	= 0x04,
 	.excute 				= 0x05,
-	.request        = 0x06,
+
 	.cmd_success 		= 0x08,
 	.cmd_failed 		= 0x09,
 };
 
-static void ack_to_cpu_uart_protocol(data_info_t *data,uint8_t len, uint8_t port)
+static void AckToCpuUartProtocol(data_info_t *data,uint8_t len, uint8_t port)
 {
 	uint8_t uart_tx_buf[125] = {0};
 	uint8_t cnt = 0;
@@ -43,21 +42,21 @@ static void ack_to_cpu_uart_protocol(data_info_t *data,uint8_t len, uint8_t port
 	USART1_SendData(uart_tx_buf, cnt);  //不定长数据应答
 }
 
-void dev_active_request(void)
+void JumpFirmwareSuccess(void)
 {
-	data_info_t data_info_request = {0};
-	data_info_request.cmd = cmd_list.request | ACK_CMD;
-	data_info_request.data[0] = (uint8_t)(ACTIVE_REQUEST >> 24); 
-	data_info_request.data[1] = (uint8_t)(ACTIVE_REQUEST >> 16);
-	data_info_request.data[2] = (uint8_t)(ACTIVE_REQUEST >> 8);	 
-	data_info_request.data[3] = (uint8_t)(ACTIVE_REQUEST >> 0); 
-	ack_to_cpu_uart_protocol(&data_info_request, 6, UART_PROTOCOL_PORT);
+	data_info_t data_info_uart = {0};
+	data_info_uart.cmd = cmd_list.excute | ACK_CMD;
+	data_info_uart.data[0] = (uint8_t)(FW_TYPE >> 24); 
+	data_info_uart.data[1] = (uint8_t)(FW_TYPE >> 16);
+	data_info_uart.data[2] = (uint8_t)(FW_TYPE >> 8);	 
+	data_info_uart.data[3] = (uint8_t)(FW_TYPE >> 0); 
+	AckToCpuUartProtocol(&data_info_uart, 6, UART_PROTOCOL_PORT);
 }
 
-#define TEST			/* 测试定义 */
+#define TEST			/* 测试阶段 */
 #define UART_DIV_PACKET_SIZE		128
 
-static void handle_uart_local(uint8_t *data, uint8_t len)
+static void HandleUartLocal(uint8_t *data, uint8_t len)
 {
 	uint8_t ret,i;
 	uint8_t uart_reserve,uart_cmd;
@@ -88,13 +87,13 @@ static void handle_uart_local(uint8_t *data, uint8_t len)
 		#ifndef TEST
 			__set_PRIMASK(1);
 			FLASH_Unlock();
-			ret = USART_BOOT_ErasePage(start_addr, start_addr);
+			ret = USART_BOOT_ErasePage(start_addr, start_addr); //每次擦除一页
 			FLASH_Lock();
 			__set_PRIMASK(0);
 		#else
 			__set_PRIMASK(1);
 			FLASH_Unlock();
-			ret = USART_BOOT_ErasePage(start_addr, APP_END_ADDR);
+			ret = USART_BOOT_ErasePage(start_addr, APP_END_ADDR);//全部擦除
 			FLASH_Lock();
 			__set_PRIMASK(0);
 		#endif
@@ -106,7 +105,7 @@ static void handle_uart_local(uint8_t *data, uint8_t len)
 		else
 			data_info_uart->data[0] = cmd_list.cmd_failed;
 		
-		ack_to_cpu_uart_protocol(data_info_uart, 3, UART_PROTOCOL_PORT);
+		AckToCpuUartProtocol(data_info_uart, 3, UART_PROTOCOL_PORT);
 	}
 	
 	/* 持续接收完整包完毕后，验证正确后写入 */
@@ -143,20 +142,20 @@ static void handle_uart_local(uint8_t *data, uint8_t len)
 					else	
 						data_info_uart->data[0] = cmd_list.cmd_failed;					
 					
-					ack_to_cpu_uart_protocol(data_info_uart, 3, UART_PROTOCOL_PORT);					
+					AckToCpuUartProtocol(data_info_uart, 3, UART_PROTOCOL_PORT);					
 				}	
 				else 
 				{
 					data_info_uart->data[0] = cmd_list.cmd_failed;
 					
-					ack_to_cpu_uart_protocol(data_info_uart, 3, UART_PROTOCOL_PORT);
+					AckToCpuUartProtocol(data_info_uart, 3, UART_PROTOCOL_PORT);
 				}
 			}
 			else 
 			{
 				data_info_uart->data[0] = cmd_list.cmd_failed;
 				
-				ack_to_cpu_uart_protocol(data_info_uart, 3, UART_PROTOCOL_PORT);
+				AckToCpuUartProtocol(data_info_uart, 3, UART_PROTOCOL_PORT);
 			}
 		}
 		#else	/* 不需要对2KB加校验，直接接收满2KB后写入flash中 */
@@ -199,7 +198,7 @@ static void handle_uart_local(uint8_t *data, uint8_t len)
 		data_info_uart->data[0] = cmd_list.cmd_success;
 		
 		/* 串口回复 */
-		ack_to_cpu_uart_protocol(data_info_uart, 3, UART_PROTOCOL_PORT);
+		AckToCpuUartProtocol(data_info_uart, 3, UART_PROTOCOL_PORT);
 		
 		USART1_Init(baund_rate);  //在未改变波特率前将应答发出，修改正确波特率后通信。
 	}
@@ -218,7 +217,7 @@ static void handle_uart_local(uint8_t *data, uint8_t len)
 		data_info_uart->data[6] = (uint8_t)(FW_TYPE >> 8);
 		data_info_uart->data[7] = (uint8_t)(FW_TYPE >> 0);
 		
-		ack_to_cpu_uart_protocol(data_info_uart, 10, UART_PROTOCOL_PORT);
+		AckToCpuUartProtocol(data_info_uart, 10, UART_PROTOCOL_PORT);
 	}
 	
 	/* 程序跳转 */
@@ -236,35 +235,35 @@ static void handle_uart_local(uint8_t *data, uint8_t len)
 	}
 }
 	
-static void handle_can_transmit(uint8_t *data, uint8_t len)
+static void HandleCanTransmit(uint8_t *data, uint8_t len)
 {
 }
 	
-static void handle_zigbee_transmit(uint8_t *data, uint8_t len)
+static void HandleZigbeeTransmit(uint8_t *data, uint8_t len)
 {
 }
 	
-static void handle_rs485_transmit(uint8_t *data, uint8_t len)
+static void HandleRs485Transmit(uint8_t *data, uint8_t len)
 {
 }
 	
-static void handle_i2c_transmit(uint8_t *data, uint8_t len)
+static void HandleI2cTransmit(uint8_t *data, uint8_t len)
 {
 }
 
 /* 数据包类型函数处理 */
 static const protocol_entry_t package_items[] = 
 {
-	{UART_PROTOCOL_PORT, 				handle_uart_local},
-	{CAN_PROTOCOL_PORT, 				handle_can_transmit},
-	{ZIGBEE_PROTOCOL_PORT, 			handle_zigbee_transmit},
-	{RS485_PROTOCOL_PORT, 			handle_rs485_transmit},
-	{I2C_PROTOCOL_PORT, 				handle_i2c_transmit},
+	{UART_PROTOCOL_PORT, 				HandleUartLocal},
+	{CAN_PROTOCOL_PORT, 				HandleCanTransmit},
+	{ZIGBEE_PROTOCOL_PORT, 			HandleZigbeeTransmit},
+	{RS485_PROTOCOL_PORT, 			HandleRs485Transmit},
+	{I2C_PROTOCOL_PORT, 				HandleI2cTransmit},
 	{0xFF,											NULL},
 };
 
 /* 校验数据正确后，解析判断端口类型，进行对应类型的数据处理 */
-static void parse_from_cpu_uart_protocol(uint8_t *data, uint8_t len)
+static void ParseFromCpuUartProtocol(uint8_t *data, uint8_t len)
 {
 	const protocol_entry_t *protocol_entry;
 	protocol_info_t protocol_info = {0};
@@ -286,7 +285,7 @@ static void parse_from_cpu_uart_protocol(uint8_t *data, uint8_t len)
 }
 
 /* 读取串口队列数据判断数据格式进行存储 */
-static void receive_from_cpu_uart_protocol(uint8_t rx_data)
+static void RecvFromCpuUartProtocol(uint8_t rx_data)
 {
 	static uint8_t rx_buf[256] = {0};
 	static uint8_t data_len = 0,data_cnt = 0;
@@ -329,7 +328,7 @@ static void receive_from_cpu_uart_protocol(uint8_t rx_data)
 	{
 		state = 0;
 		rx_buf[3 + data_cnt++] = rx_data;
-		parse_from_cpu_uart_protocol(rx_buf,3 + data_cnt);
+		ParseFromCpuUartProtocol(rx_buf,3 + data_cnt);
 	}
 	else
 	{
@@ -337,13 +336,13 @@ static void receive_from_cpu_uart_protocol(uint8_t rx_data)
 	}
 }
 
-/* 处理由cpu发来的串口数据，回应cpu */
-void handle_usart_queue(void)
+/* 处理由cpu发来的串口数据 */
+void HandleUsartQueue(void)
 {
 	uint8_t from_cpu_uart_data;
 	if (USART_QUEUE_OK == UsartQueuePop(&usart1_send, &from_cpu_uart_data))
 	{
-		receive_from_cpu_uart_protocol(from_cpu_uart_data);
+		RecvFromCpuUartProtocol(from_cpu_uart_data);
 	}
 }
 

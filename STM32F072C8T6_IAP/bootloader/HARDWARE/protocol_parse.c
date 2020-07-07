@@ -7,7 +7,6 @@
 #define CAN_BL_APP       0xAAAAAAAA
 #define FW_TYPE          CAN_BL_BOOT
 #define FW_VER					 0x00010000		//v1.0
-#define ACTIVE_REQUEST	 0xFFFFFFFF
 
 cmd_list_t cmd_list = 
 {
@@ -16,23 +15,22 @@ cmd_list_t cmd_list =
 	.check_version 	= 0x03,
 	.set_baundrate 	= 0x04,
 	.excute 				= 0x05,
-	.request        = 0x06,
 	.cmd_success 		= 0x08,
 	.cmd_failed 		= 0x09,
 };
 
-void dev_active_request(void)
+void JumpFirmwareSuccess(void)
 {
 	CanTxMsg TxMessage = {0};
 	
-	TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH | cmd_list.request);
+	TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH | cmd_list.excute);
 	TxMessage.IDE = CAN_Id_Extended;
 	TxMessage.RTR = CAN_RTR_Data;
 	
-	TxMessage.Data[0] = (uint8_t)(ACTIVE_REQUEST >> 24); 
-	TxMessage.Data[1] = (uint8_t)(ACTIVE_REQUEST >> 16); 
-	TxMessage.Data[2] = (uint8_t)(ACTIVE_REQUEST >> 8);
-	TxMessage.Data[3] = (uint8_t)(ACTIVE_REQUEST >> 0); 
+	TxMessage.Data[0] = (uint8_t)(FW_TYPE >> 24); 
+	TxMessage.Data[1] = (uint8_t)(FW_TYPE >> 16); 
+	TxMessage.Data[2] = (uint8_t)(FW_TYPE >> 8);
+	TxMessage.Data[3] = (uint8_t)(FW_TYPE >> 0); 
 	TxMessage.DLC = 4;
 	
 	CAN_WriteData(&TxMessage);
@@ -43,7 +41,7 @@ void dev_active_request(void)
   * @param  pRxMessage CAN总线消息
   * @retval 无
   */
-#define TEST
+#define TEST  //测试阶段
 void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage)
 {
   CanTxMsg TxMessage;
@@ -59,7 +57,7 @@ void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage)
   static uint32_t data_size=0;
   static uint32_t data_index=0;
   __align(4) static uint8_t	data_temp[PAGE_SIZE + 2];
-  //判断接收的数据地址是否和本节点地址匹配，若不匹配则直接返回，不做任何事情，地址为0为广播
+  //判断接收的数据地址是否和本节点地址匹配，若不匹配则直接返回，不做任何事情，地址0为广播模式
   if((can_addr != CAN_BOOT_GetAddrData()) && (can_addr != 0))
 	{
     return;
@@ -256,7 +254,7 @@ uint8_t CAN_BOOT_GetAddrData(void)
 }
 
 /* 处理F105下发的数据包解析 */
-void handle_can_queue(void)
+void HandleCanQueue(void)
 {
 	can_frame_t from_mcu_can_data;
 	if (CAN_OK == CanQueueRead(&can_queue_send, &from_mcu_can_data))

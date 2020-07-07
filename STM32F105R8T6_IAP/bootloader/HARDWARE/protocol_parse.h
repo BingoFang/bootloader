@@ -19,7 +19,7 @@ typedef struct
 	uint8_t check_version;
 	uint8_t set_baundrate;
 	uint8_t excute;
-	uint8_t request;
+
 	uint8_t cmd_success;
 	uint8_t cmd_failed;
 }cmd_list_t;
@@ -33,7 +33,7 @@ typedef  struct
 		uint8_t reserve;
 		uint8_t addr;
 	}option;
-	uint8_t data[128];  //串口发送每包bin文件为1024整除(建议128 B)
+	uint8_t data[128];  //串口发送每包bin数据内容需1024整除(len限制长度，建议128 Byte)
 }data_info_t;
 
 
@@ -49,9 +49,8 @@ typedef struct
 	void (*handle)(uint8_t *data, uint8_t len);
 }protocol_entry_t;
 
-void dev_active_request(void);
-void receive_from_cpu_uart_protocol(uint8_t rx_data);
-void handle_usart_queue(void);
+void JumpFirmwareSuccess(void);
+void HandleUsartQueue(void);
 void handle_can_queue(void);
 
 #endif

@@ -31,9 +31,6 @@ IAP升级区域划分,flash:64kb,sram:16kb,page size 2kb
 ==========================================
 */
 
-extern CanRxMsg CAN_RxMessage;
-extern volatile uint8_t CAN_RxMsgFlag;//接收到CAN数据后的标志
-
 //本地直接跳转app
 void LocalJumpApp(void)
 {
@@ -42,33 +39,28 @@ void LocalJumpApp(void)
     }
 }
 
-
 int main(void)
 {
-	LED_Init();
-	delay_init();
-	
-	if(*((uint32_t *)APP_EXE_FLAG_START_ADDR)==0x78563412)
+	if(*((uint32_t *)APP_EXE_FLAG_START_ADDR) == 0x78563412)
 	{
     CAN_BOOT_JumpToApplication(APP_START_ADDR);
   }
   __set_PRIMASK(0);//开启总中断
+	
+	LED_Init();
+	DelayInit();
   CAN_Configuration(125000);	//can通信配置
 	
+	/* 灯光提示 */
 	LED3_ON(); LED4_ON();
 	delay_ms(2000);
 	LED3_OFF(); LED4_OFF();		
 	
-	dev_active_request();	 //在bootloader模式下主动请求
+	JumpFirmwareSuccess();	   //程序跳转成功回复
 	
   while (1)
   {	
-//		if (CAN_RxMsgFlag)
-//		{	
-//			CAN_RxMsgFlag = 0;
-//			CAN_BOOT_ExecutiveCommand(&CAN_RxMessage);
-//		}
-		handle_can_queue();
+		HandleCanQueue();
   } 
 }
 

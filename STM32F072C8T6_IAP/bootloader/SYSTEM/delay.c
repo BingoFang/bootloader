@@ -7,7 +7,7 @@ static int16_t fac_ms=0;//ms
 //当使用OS的时候,此函数会初始化OS的时钟节拍
 //SYSTICK的时钟固定为HCLK时钟的1/8
 //SYSCLK:系统时钟
-void delay_init()	 
+void DelayInit()	 
 {
 	SysTick_CLKSourceConfig(SysTick_CLKSource_HCLK_Div8);//选择外部时钟  HCLK/8
 	fac_us=SystemCoreClock/8000000;	//为系统时钟的1/8  

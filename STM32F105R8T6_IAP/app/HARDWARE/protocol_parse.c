@@ -18,12 +18,11 @@ cmd_list_t cmd_list =
 	.check_version 	= 0x03,
 	.set_baundrate 	= 0x04,
 	.excute 				= 0x05,
-	.request        = 0x06,
 	.cmd_success 		= 0x08,
 	.cmd_failed 		= 0x09,
 };
 
-static void ack_to_cpu_uart_protocol(data_info_t *data,uint8_t len, uint8_t port)
+static void AckToCpuUartProtocol(data_info_t *data,uint8_t len, uint8_t port)
 {
 	uint8_t uart_tx_buf[125] = {0};
 	uint8_t cnt = 0;
@@ -42,8 +41,18 @@ static void ack_to_cpu_uart_protocol(data_info_t *data,uint8_t len, uint8_t port
 	USART1_SendData(uart_tx_buf, cnt);  //不定长数据应答
 }
 
+void JumpFirmwareSuccess(void)
+{
+	data_info_t data_info_uart = {0};
+	data_info_uart.cmd = cmd_list.excute | ACK_CMD;
+	data_info_uart.data[0] = (uint8_t)(FW_TYPE >> 24); 
+	data_info_uart.data[1] = (uint8_t)(FW_TYPE >> 16);
+	data_info_uart.data[2] = (uint8_t)(FW_TYPE >> 8);	 
+	data_info_uart.data[3] = (uint8_t)(FW_TYPE >> 0); 
+	AckToCpuUartProtocol(&data_info_uart, 6, UART_PROTOCOL_PORT);
+}
 
-static void handle_uart_local(uint8_t *data, uint8_t len)
+static void HandleUartLocal(uint8_t *data, uint8_t len)
 {
 	uint8_t uart_reserve,uart_cmd;
 	uint32_t exe_type;
@@ -64,7 +73,7 @@ static void handle_uart_local(uint8_t *data, uint8_t len)
 		data_info_uart->option.reserve = uart_reserve;
 		data_info_uart->data[0] = cmd_list.cmd_success;
 		
-		ack_to_cpu_uart_protocol(data_info_uart, 3, UART_PROTOCOL_PORT);
+		AckToCpuUartProtocol(data_info_uart, 3, UART_PROTOCOL_PORT);
 		
 		USART1_Init(baund_rate);  //在未改变波特率前将应答发出，修改正确波特率后通信。
 	}
@@ -83,7 +92,7 @@ static void handle_uart_local(uint8_t *data, uint8_t len)
 		data_info_uart->data[6] = (uint8_t)(FW_TYPE >> 8);
 		data_info_uart->data[7] = (uint8_t)(FW_TYPE >> 0);
 		
-		ack_to_cpu_uart_protocol(data_info_uart, 10, UART_PROTOCOL_PORT);
+		AckToCpuUartProtocol(data_info_uart, 10, UART_PROTOCOL_PORT);
 	}
 	
 	/* 程序跳转 */
@@ -105,7 +114,7 @@ static void handle_uart_local(uint8_t *data, uint8_t len)
 #define CAN_DIV_PACKET_SIZE   128    //最小包数据为128字节
 #define TEST
 uint32_t can_baund_rate;
-static void handle_can_transmit(uint8_t *data, uint8_t len)
+static void HandleCanTransmit(uint8_t *data, uint8_t len)
 {
 	CanTxMsg TxMessage;
 	uint8_t i;
@@ -211,7 +220,7 @@ static void handle_can_transmit(uint8_t *data, uint8_t len)
 				发送需要256次，要在100ms内发送完，否则又会新的数据缓存在uart_queue，只能在间隔
 				的100ms中去处理can数据分发，分发的速度过慢迟早会让uart_queue覆盖未处理的数据。
 				
-				---将存储2kb更改为存储128b就开始分包发送，在100ms内压力就比较小些。
+				---将存储2kb更改为接收128b一包就开始分包发送，在100ms内压力就比较小些。
 				*/
 			  len_sub_integer = data_index / 8;
 				len_sub_remain = data_index % 8;
@@ -283,19 +292,19 @@ static void handle_can_transmit(uint8_t *data, uint8_t len)
 	}
 }
 	
-static void handle_zigbee_transmit(uint8_t *data, uint8_t len)
+static void HandleZigbeeTransmit(uint8_t *data, uint8_t len)
 {
 }
 	
-static void handle_rs485_transmit(uint8_t *data, uint8_t len)
+static void HandleRs485Transmit(uint8_t *data, uint8_t len)
 {
 }
 	
-static void handle_i2c_transmit(uint8_t *data, uint8_t len)
+static void HandleI2cTransmit(uint8_t *data, uint8_t len)
 {
 }
 
-static void parse_from_mcu_can_protocol(CanRxMsg *pRxMessage)
+static void ParseFromMcuCanProtocol(CanRxMsg *pRxMessage)
 {
   uint8_t can_cmd = (pRxMessage->ExtId) & CMD_MASK;//ID的bit0~bit3位为命令码
   uint8_t can_addr = (pRxMessage->ExtId >> CMD_WIDTH);//ID的bit4~bit11位为节点地址
@@ -316,9 +325,9 @@ static void parse_from_mcu_can_protocol(CanRxMsg *pRxMessage)
 		data_info_can.data[6] = pRxMessage->Data[6];
 		data_info_can.data[7] = pRxMessage->Data[7];
 		
-		ack_to_cpu_uart_protocol(&data_info_can, 10, CAN_PROTOCOL_PORT);
+		AckToCpuUartProtocol(&data_info_can, 10, CAN_PROTOCOL_PORT);
 	}
-	else if (can_cmd == cmd_list.request)
+	else if (can_cmd == cmd_list.excute)
 	{
 		data_info_can.cmd = can_cmd | ACK_CMD;
 		data_info_can.option.addr = can_addr;
@@ -327,7 +336,7 @@ static void parse_from_mcu_can_protocol(CanRxMsg *pRxMessage)
 		data_info_can.data[2] = pRxMessage->Data[2];
 		data_info_can.data[3] = pRxMessage->Data[3];
 		
-		ack_to_cpu_uart_protocol(&data_info_can, 6, CAN_PROTOCOL_PORT);
+		AckToCpuUartProtocol(&data_info_can, 6, CAN_PROTOCOL_PORT);
 	}
 	else 
 	{
@@ -344,21 +353,21 @@ static void parse_from_mcu_can_protocol(CanRxMsg *pRxMessage)
 		data_info_can.option.addr = can_addr;
 		data_info_can.data[0] = pRxMessage->Data[0];
 		
-		ack_to_cpu_uart_protocol(&data_info_can, 3, CAN_PROTOCOL_PORT);
+		AckToCpuUartProtocol(&data_info_can, 3, CAN_PROTOCOL_PORT);
 	}
 }
 
 static const protocol_entry_t package_items[] = 
 {
-	{UART_PROTOCOL_PORT, 				handle_uart_local},
-	{CAN_PROTOCOL_PORT, 				handle_can_transmit},
-	{ZIGBEE_PROTOCOL_PORT, 			handle_zigbee_transmit},
-	{RS485_PROTOCOL_PORT, 			handle_rs485_transmit},
-	{I2C_PROTOCOL_PORT, 				handle_i2c_transmit},
+	{UART_PROTOCOL_PORT, 				HandleUartLocal},
+	{CAN_PROTOCOL_PORT, 				HandleCanTransmit},
+	{ZIGBEE_PROTOCOL_PORT, 			HandleZigbeeTransmit},
+	{RS485_PROTOCOL_PORT, 			HandleRs485Transmit},
+	{I2C_PROTOCOL_PORT, 				HandleI2cTransmit},
 	{0xFF,											NULL},
 };
 
-static void parse_from_cpu_uart_protocol(uint8_t *data, uint8_t len)
+static void ParseFromCpuUartProtocol(uint8_t *data, uint8_t len)
 {
 	const protocol_entry_t *protocol_entry;
 	protocol_info_t protocol_info = {0};
@@ -378,7 +387,7 @@ static void parse_from_cpu_uart_protocol(uint8_t *data, uint8_t len)
 	}
 }
 
-void receive_from_cpu_uart_protocol(uint8_t rx_data)
+void RecvFromCpuUartProtocol(uint8_t rx_data)
 {
 	static uint8_t rx_buf[256] = {0};
 	static uint8_t data_len = 0,data_cnt = 0;
@@ -421,7 +430,7 @@ void receive_from_cpu_uart_protocol(uint8_t rx_data)
 	{
 		state = 0;
 		rx_buf[3 + data_cnt++] = rx_data;
-		parse_from_cpu_uart_protocol(rx_buf,3 + data_cnt);
+		ParseFromCpuUartProtocol(rx_buf,3 + data_cnt);
 	}
 	else
 	{
@@ -430,22 +439,22 @@ void receive_from_cpu_uart_protocol(uint8_t rx_data)
 }
 
 /* 处理由cpu发来的串口数据，回应cpu */
-void handle_usart_queue(void)
+void HandleUsartQueue(void)
 {
 	uint8_t from_cpu_uart_data;
 	if (USART_QUEUE_OK == UsartQueuePop(&usart1_send, &from_cpu_uart_data))
 	{
-		receive_from_cpu_uart_protocol(from_cpu_uart_data);
+		RecvFromCpuUartProtocol(from_cpu_uart_data);
 	}
 }
 
 /* 处理F072回应的CAN数据帧，回应cpu */
-void handle_can_queue(void)
+void HandleCanQueue(void)
 {
 	can_frame_t from_mcu_can_data;
 	if (CAN_OK == CanQueueRead(&can_queue_send, &from_mcu_can_data))
 	{
 		/* 拆分CAN数据帧，重组为串口格式回应CPU */
-		parse_from_mcu_can_protocol(&from_mcu_can_data);
+		ParseFromMcuCanProtocol(&from_mcu_can_data);
 	}
 }
