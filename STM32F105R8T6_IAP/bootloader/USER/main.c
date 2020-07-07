@@ -39,14 +39,6 @@ void LocalJumpApp(void)
   }
 }   
 
-/* 错误类型定义 */
-typedef enum _ERROR
-{
-	ERROR_JUMP_FW = 0,
-	ERROR_CHECKOUT_PACKET,
-	ERROR_RECV_TIMEOUT,
-}error_type;
-
 int main(void)
 { 
 	/* 检查升级标志，判断是否有升级标志符 */

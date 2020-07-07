@@ -18,8 +18,6 @@ cmd_list_t cmd_list =
 	.check_version 	= 0x03,
 	.set_baundrate 	= 0x04,
 	.excute 				= 0x05,
-	.cmd_success 		= 0x08,
-	.cmd_failed 		= 0x09,
 };
 
 static void AckToCpuUartProtocol(data_info_t *data,uint8_t len, uint8_t port)
@@ -71,7 +69,7 @@ static void HandleUartLocal(uint8_t *data, uint8_t len)
 		
 		data_info_uart->cmd |= ACK_CMD;
 		data_info_uart->option.reserve = uart_reserve;
-		data_info_uart->data[0] = cmd_list.cmd_success;
+		data_info_uart->data[0] = STATUS_OK;
 		
 		AckToCpuUartProtocol(data_info_uart, 3, UART_PROTOCOL_PORT);
 		
@@ -344,7 +342,7 @@ static void ParseFromMcuCanProtocol(CanRxMsg *pRxMessage)
 		{
 			/* 更改can波特率回复成功修改本地can波特率，f072跳转程序后恢复默认can波特率，
 			本地也需要恢复can波特率才能正常通行 */
-			if (pRxMessage->Data[0] == cmd_list.cmd_success)
+			if (pRxMessage->Data[0] == STATUS_OK)
 			{
 				CAN_Configuration(can_baund_rate);	
 			}	

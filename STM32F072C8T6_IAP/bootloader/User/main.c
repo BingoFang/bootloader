@@ -1,12 +1,11 @@
 /*************************************************************************
  * 文    件 : main.c
- * 编 写 人	：bingofang
+ * 编 写 人	：fmq
  * 描    述	：bootloader实现CAN数据升级管理
  * 编写时间	：2020-06-30
  * 版    本	：v1.0
 **************************************************************************/
 #include "main.h"
-#include <string.h>
 
 /*
 IAP升级区域划分,flash:64kb,sram:16kb,page size 2kb
@@ -48,6 +47,7 @@ int main(void)
   __set_PRIMASK(0);//开启总中断
 	
 	LED_Init();
+	IWDG_Init(4, 625);  				//溢出定时1S
 	DelayInit();
   CAN_Configuration(125000);	//can通信配置
 	
@@ -60,6 +60,7 @@ int main(void)
 	
   while (1)
   {	
+		IWDG_ReloadCounter();
 		HandleCanQueue();
   } 
 }

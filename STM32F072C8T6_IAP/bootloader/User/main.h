@@ -5,6 +5,7 @@
 #include "delay.h"
 #include "crc16.h"
 #include "led.h"
+#include "iwdg.h"
 #include "can.h"
 #include "can_queue.h"
 #include "bootloader.h"

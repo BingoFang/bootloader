@@ -12,6 +12,7 @@ typedef enum
 	I2C_PROTOCOL_PORT,
 }PROTOCOL_TYPE;
 
+/* 指令类型定义 */
 typedef struct
 {
 	uint8_t write_info;
@@ -19,11 +20,17 @@ typedef struct
 	uint8_t check_version;
 	uint8_t set_baundrate;
 	uint8_t excute;
-
-	uint8_t cmd_success;
-	uint8_t cmd_failed;
 }cmd_list_t;
 
+/* 状态类型定义 */
+typedef enum 
+{
+	STATUS_OK 					= 0x00U,
+	STATUS_ERROR				= 0x01U,
+	STATUS_JUMP_FAIL 		= 0x02U,
+	STATUS_CRC_FAIL			= 0x03U,
+	STATUS_RECV_TIMEOUT = 0x04U 
+}status_type_t;
 
 typedef  struct
 {

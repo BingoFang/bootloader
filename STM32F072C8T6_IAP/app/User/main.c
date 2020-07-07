@@ -1,6 +1,6 @@
 /*************************************************************************
  * 文    件 : main.c
- * 编 写 人	：bingofang
+ * 编 写 人	：fmq
  * 描    述	：app实现业务逻辑和CAN交互
  * 编写时间	：2020-06-30
  * 版    本	：v1.0
@@ -59,15 +59,7 @@ int main(void)
 {
 	VectorTableOffset();  //软件搬运中断向量表
 	
-	LED_Init();
-	delay_init();
-	CAN_Configuration(125000);
-	
-	LED1_ON(); LED2_ON();
-	delay_ms(2000);
-	LED1_OFF(); LED2_OFF();		
-	
-	/* 1、不放在开头检测升级标志符，防止烧录具备同样APP地址和升级标志符，跳转后就把升级标志符给更新了。导致复位后
+		/* 1、不放在开头检测升级标志符，防止烧录具备同样APP地址和升级标志符，跳转后就把升级标志符给更新了。导致复位后
 	依然要跳转APP，这样可以使用看门狗复位后能够停留在boot程序下还能继续升级程序。
 		2、下载了不具备app再升级的程序，就无法跳回boot程序，只能依靠原app程序需要喂狗操作来表明非正确bin文件，复位
 	重回boot程序，等待升级。
@@ -81,15 +73,21 @@ int main(void)
   }
   __set_PRIMASK(0);//开启总中断
 	
+	LED_Init();
+	delay_init();
+	IWDG_Init(4, 625);  //定时溢出1S
+	CAN_Configuration(125000);
+	
+	LED1_ON(); LED2_ON();
+	delay_ms(2000);
+	LED1_OFF(); LED2_OFF();		
+
+	JumpFirmwareSuccess();	   //程序跳转成功回复
 	
   while (1)
   {	
-//		if (CAN_RxMsgFlag)
-//		{	
-//			CAN_RxMsgFlag = 0;
-//			CAN_BOOT_ExecutiveCommand(&CAN_RxMessage);
-//		}
-		handle_can_queue();
+		IWDG_ReloadCounter();
+		HandleCanQueue();
   } 
 }
 

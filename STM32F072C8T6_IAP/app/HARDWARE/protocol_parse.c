@@ -14,10 +14,24 @@ cmd_list_t cmd_list =
 	.check_version 	= 0x03,
 	.set_baundrate 	= 0x04,
 	.excute 				= 0x05,
-	.request        = 0x06,
-	.cmd_success 		= 0x08,
-	.cmd_failed 		= 0x09,
 };
+
+void JumpFirmwareSuccess(void)
+{
+	CanTxMsg TxMessage = {0};
+	
+	TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH | cmd_list.excute);
+	TxMessage.IDE = CAN_Id_Extended;
+	TxMessage.RTR = CAN_RTR_Data;
+	
+	TxMessage.Data[0] = (uint8_t)(FW_TYPE >> 24); 
+	TxMessage.Data[1] = (uint8_t)(FW_TYPE >> 16); 
+	TxMessage.Data[2] = (uint8_t)(FW_TYPE >> 8);
+	TxMessage.Data[3] = (uint8_t)(FW_TYPE >> 0); 
+	TxMessage.DLC = 4;
+	
+	CAN_WriteData(&TxMessage);
+}
 
 /**
   * @brief  执行主机下发的命令
@@ -50,7 +64,7 @@ void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage)
     if(can_addr != 0x00)
 		{
       TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
-			TxMessage.Data[0] = cmd_list.cmd_success;
+			TxMessage.Data[0] = STATUS_OK;
       TxMessage.DLC = 1;
       CAN_WriteData(&TxMessage);
 			CAN_Configuration(BaudRate);
@@ -105,7 +119,7 @@ uint8_t CAN_BOOT_GetAddrData(void)
 }
 
 /* 处理F105下发的数据包解析 */
-void handle_can_queue(void)
+void HandleCanQueue(void)
 {
 	can_frame_t from_mcu_can_data;
 	if (CAN_OK == CanQueueRead(&can_queue_send, &from_mcu_can_data))

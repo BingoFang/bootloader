@@ -436,6 +436,11 @@
               <FileType>1</FileType>
               <FilePath>..\HARDWARE\protocol_parse.c</FilePath>
             </File>
+            <File>
+              <FileName>iwdg.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\HARDWARE\iwdg.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -480,6 +485,11 @@
               <FileName>stm32f0xx_flash.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\STM32F0xx_FWLib\src\stm32f0xx_flash.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f0xx_iwdg.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\STM32F0xx_FWLib\src\stm32f0xx_iwdg.c</FilePath>
             </File>
           </Files>
         </Group>

@@ -15,8 +15,6 @@ cmd_list_t cmd_list =
 	.check_version 	= 0x03,
 	.set_baundrate 	= 0x04,
 	.excute 				= 0x05,
-	.cmd_success 		= 0x08,
-	.cmd_failed 		= 0x09,
 };
 
 void JumpFirmwareSuccess(void)
@@ -76,7 +74,7 @@ void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage)
     if(can_addr != 0x00)
 		{
       TxMessage.ExtId = (CAN_BOOT_GetAddrData() << CMD_WIDTH) | can_cmd;
-			TxMessage.Data[0] = cmd_list.cmd_success;
+			TxMessage.Data[0] =STATUS_ERROR;
       TxMessage.DLC = 1;
       CAN_WriteData(&TxMessage);
 			CAN_Configuration(BaudRate);
@@ -114,16 +112,16 @@ void CAN_BOOT_ExecutiveCommand(CanRxMsg *pRxMessage)
     if(can_addr != 0x00)
 		{
 			if (ret == FLASH_COMPLETE)
-				TxMessage.Data[0] = cmd_list.cmd_success;
+				TxMessage.Data[0] = STATUS_OK;
 			else
-				TxMessage.Data[0] = cmd_list.cmd_failed;
+				TxMessage.Data[0] = STATUS_ERROR;
 			
       TxMessage.DLC = 1;
       CAN_WriteData(&TxMessage);
     }
 		else
 		{
-			TxMessage.Data[0] = cmd_list.cmd_failed;
+			TxMessage.Data[0] = STATUS_ERROR;
 			TxMessage.DLC = 1;
       CAN_WriteData(&TxMessage);
 		}
